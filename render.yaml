@@ -6,7 +6,7 @@ services:
     name: benjo-moments-studio
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:create_app() --bind 0.0.0.0:$PORT
+    startCommand: gunicorn wsgi:app --bind 0.0.0.0:$PORT
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.0"
@@ -16,7 +16,3 @@ services:
         value: production
     autoDeploy: true
     healthCheckPath: /
-    disk:
-      name: benjo-data
-      mountPath: /data
-      sizeGB: 1
