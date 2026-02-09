@@ -1,0 +1,178 @@
+{% extends 'public/base.html' %}
+{% block title %}Gallery - {{ settings['site_name'] if settings else 'Benjo Moments' }}{% endblock %}
+
+{% block extra_styles %}
+<style>
+    /* Dynamic Ken Burns Effect - FACE-FOCUSED animations */
+    .gallery-item {
+        overflow: hidden;
+    }
+
+    .gallery-item img {
+        animation: kenburns 25s ease-in-out infinite;
+        transform-origin: center 30%;
+        /* Focus on upper-center where faces usually are */
+        object-position: center 30%;
+        /* Position image to show faces */
+    }
+
+    /* Different subtle animation patterns - keeping faces visible */
+    .gallery-item:nth-child(6n+1) img {
+        animation-name: kb-gentle-zoom;
+        animation-duration: 20s;
+    }
+
+    .gallery-item:nth-child(6n+2) img {
+        animation-name: kb-subtle-pan;
+        animation-duration: 25s;
+        animation-delay: -5s;
+    }
+
+    .gallery-item:nth-child(6n+3) img {
+        animation-name: kb-focus-center;
+        animation-duration: 22s;
+        animation-delay: -10s;
+    }
+
+    .gallery-item:nth-child(6n+4) img {
+        animation-name: kb-gentle-zoom;
+        animation-duration: 24s;
+        animation-delay: -3s;
+    }
+
+    .gallery-item:nth-child(6n+5) img {
+        animation-name: kb-subtle-pan;
+        animation-duration: 21s;
+        animation-delay: -8s;
+    }
+
+    .gallery-item:nth-child(6n+6) img {
+        animation-name: kb-face-focus;
+        animation-duration: 23s;
+        animation-delay: -12s;
+    }
+
+    /* Gentle zoom - stays centered on faces */
+    @keyframes kb-gentle-zoom {
+        0% {
+            transform: scale(1.05);
+            transform-origin: center 30%;
+        }
+
+        50% {
+            transform: scale(1.15);
+            transform-origin: center 30%;
+        }
+
+        100% {
+            transform: scale(1.05);
+            transform-origin: center 30%;
+        }
+    }
+
+    /* Subtle horizontal pan - minimal movement to keep faces visible */
+    @keyframes kb-subtle-pan {
+        0% {
+            transform: scale(1.1) translateX(-2%);
+            transform-origin: center 35%;
+        }
+
+        50% {
+            transform: scale(1.15) translateX(2%);
+            transform-origin: center 35%;
+        }
+
+        100% {
+            transform: scale(1.1) translateX(-2%);
+            transform-origin: center 35%;
+        }
+    }
+
+    /* Focus on center - zoom into center where main subjects are */
+    @keyframes kb-focus-center {
+        0% {
+            transform: scale(1.0);
+            transform-origin: center 35%;
+        }
+
+        50% {
+            transform: scale(1.18);
+            transform-origin: center 35%;
+        }
+
+        100% {
+            transform: scale(1.0);
+            transform-origin: center 35%;
+        }
+    }
+
+    /* Face focus - slight zoom emphasizing upper portion where faces are */
+    @keyframes kb-face-focus {
+        0% {
+            transform: scale(1.08) translateY(1%);
+            transform-origin: center 25%;
+        }
+
+        50% {
+            transform: scale(1.18) translateY(-1%);
+            transform-origin: center 25%;
+        }
+
+        100% {
+            transform: scale(1.08) translateY(1%);
+            transform-origin: center 25%;
+        }
+    }
+
+    /* Pause animation on hover to let user view clearly */
+    .gallery-item:hover img {
+        animation-play-state: paused;
+        transform: scale(1.0);
+        transform-origin: center center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+    <h1>Our Gallery</h1>
+    <p>Browse through our collection of beautiful moments</p>
+</div>
+
+<section class="section">
+    <div class="container">
+        <!-- Filter Buttons -->
+        <div class="filter-buttons">
+            <a href="{{ url_for('public.gallery') }}"
+                class="filter-btn {% if not current_album %}active{% endif %}">All</a>
+            {% for album in albums %}
+            <a href="{{ url_for('public.gallery', album=album) }}"
+                class="filter-btn {% if current_album == album %}active{% endif %}">{{ album.title() }}</a>
+            {% endfor %}
+        </div>
+
+        <!-- Gallery Grid -->
+        {% if images %}
+        <div class="gallery-grid">
+            {% for img in images %}
+            <div class="gallery-item">
+                <img src="{{ url_for('static', filename='uploads/' + img['album'] + '/' + img['filename']) }}"
+                    alt="{{ img['caption'] or 'Gallery image' }}">
+                <div class="gallery-overlay">
+                    <h3>{{ img['caption'] if img['caption'] else 'Beautiful Moment' }}</h3>
+                    <span>{{ img['album'].title() }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 60px 20px;">
+            <i class="fas fa-images" style="font-size: 64px; color: #cbd5e0; margin-bottom: 20px;"></i>
+            <h3 style="color: #718096;">No images available</h3>
+            <p style="color: #a0aec0;">Check back soon for new photos!</p>
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

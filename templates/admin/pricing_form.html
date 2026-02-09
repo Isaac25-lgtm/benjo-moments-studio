@@ -1,0 +1,106 @@
+{% extends 'admin/base.html' %}
+
+{% block content %}
+<div class="admin-header">
+    <h1><i class="fas fa-{{ 'edit' if package else 'plus' }}"></i> {{ 'Edit' if package else 'Add' }} Pricing Package
+    </h1>
+    <a href="{{ url_for('admin.pricing') }}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST" class="form">
+            <div class="form-row">
+                <div class="form-group col-md-6">
+                    <label for="name"><i class="fas fa-tag"></i> Package Name *</label>
+                    <input type="text" class="form-control" id="name" name="name"
+                        value="{{ package['name'] if package else '' }}" required
+                        placeholder="e.g., Basic, Premium, Full Package">
+                </div>
+                <div class="form-group col-md-6">
+                    <label for="description"><i class="fas fa-info-circle"></i> Short Description</label>
+                    <input type="text" class="form-control" id="description" name="description"
+                        value="{{ package['description'] if package else '' }}"
+                        placeholder="e.g., Perfect for portraits & small events">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group col-md-4">
+                    <label for="price"><i class="fas fa-money-bill"></i> Price (UGX) *</label>
+                    <input type="number" class="form-control" id="price" name="price"
+                        value="{{ package['price'] if package else '300000' }}" required placeholder="e.g., 300000">
+                    <small class="text-muted">Enter full amount (300000 = 300K)</small>
+                </div>
+                <div class="form-group col-md-4">
+                    <label for="price_label"><i class="fas fa-label"></i> Price Label</label>
+                    <select class="form-control" id="price_label" name="price_label">
+                        <option value="/session" {{ 'selected' if package and package['price_label']=='/session' else ''
+                            }}>/session</option>
+                        <option value="/event" {{ 'selected' if package and package['price_label']=='/event' else '' }}>
+                            /event</option>
+                        <option value="/hour" {{ 'selected' if package and package['price_label']=='/hour' else '' }}>
+                            /hour</option>
+                        <option value="/day" {{ 'selected' if package and package['price_label']=='/day' else '' }}>/day
+                        </option>
+                        <option value="" {{ 'selected' if package and package['price_label']=='' else '' }}>(no label)
+                        </option>
+                    </select>
+                </div>
+                <div class="form-group col-md-4">
+                    <label for="icon"><i class="fas fa-icons"></i> Icon</label>
+                    <select class="form-control" id="icon" name="icon">
+                        <option value="fa-camera" {{ 'selected' if package and package['icon']=='fa-camera' else '' }}>
+                            📷 Camera (fa-camera)</option>
+                        <option value="fa-heart" {{ 'selected' if package and package['icon']=='fa-heart' else '' }}>❤️
+                            Heart (fa-heart)</option>
+                        <option value="fa-video" {{ 'selected' if package and package['icon']=='fa-video' else '' }}>🎥
+                            Video (fa-video)</option>
+                        <option value="fa-star" {{ 'selected' if package and package['icon']=='fa-star' else '' }}>⭐
+                            Star (fa-star)</option>
+                        <option value="fa-gem" {{ 'selected' if package and package['icon']=='fa-gem' else '' }}>💎
+                            Diamond (fa-gem)</option>
+                        <option value="fa-crown" {{ 'selected' if package and package['icon']=='fa-crown' else '' }}>👑
+                            Crown (fa-crown)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="features"><i class="fas fa-list-check"></i> Features (separate with | character)</label>
+                <textarea class="form-control" id="features" name="features" rows="4"
+                    placeholder="2 Hours Coverage|50+ Edited Photos|Digital Download|1 Location">{{ package['features'] if package else '' }}</textarea>
+                <small class="text-muted">Example: 2 Hours Coverage|50+ Edited Photos|Digital Download|1
+                    Location</small>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group col-md-6">
+                    <label for="display_order"><i class="fas fa-sort"></i> Display Order</label>
+                    <input type="number" class="form-control" id="display_order" name="display_order"
+                        value="{{ package['display_order'] if package else '0' }}"
+                        placeholder="Lower numbers appear first">
+                    <small class="text-muted">Lower numbers appear first on the website</small>
+                </div>
+                <div class="form-group col-md-6">
+                    <label>&nbsp;</label>
+                    <div class="form-check" style="margin-top: 10px;">
+                        <input type="checkbox" class="form-check-input" id="is_featured" name="is_featured" {{ 'checked'
+                            if package and package['is_featured'] else '' }}>
+                        <label class="form-check-label" for="is_featured">
+                            <strong>★ Mark as Featured (Most Popular)</strong>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions" style="margin-top: 30px;">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-save"></i> {{ 'Update' if package else 'Create' }} Package
+                </button>
+                <a href="{{ url_for('admin.pricing') }}" class="btn btn-secondary btn-lg">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

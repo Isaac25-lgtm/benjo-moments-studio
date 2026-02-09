@@ -1,0 +1,92 @@
+{% extends 'admin/base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- Welcome Message -->
+<div class="content-card"
+    style="background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%); color: white; margin-bottom: 25px;">
+    <h2 style="border: none; color: white; margin-bottom: 10px;"><i class="fas fa-home"></i> Welcome to Your Business
+        Dashboard</h2>
+    <p style="opacity: 0.9; margin: 0;">This is your central hub for managing Benjo Moments Photography. Here you can
+        see a quick overview of your business finances and recent activity. Use the menu on the left to navigate to
+        different sections.</p>
+</div>
+
+<!-- Stats Overview -->
+<div class="content-card" style="margin-bottom: 25px;">
+    <h3 style="color: #4a5568; margin-bottom: 15px;"><i class="fas fa-info-circle"></i> Financial Overview</h3>
+    <p class="text-muted" style="margin-bottom: 20px;">These cards show your overall business performance at a glance.
+        Green means money coming in, red means money going out.</p>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card income">
+        <h3><i class="fas fa-arrow-down"></i> Total Income</h3>
+        <div class="value">UGX {{ "{:,.0f}".format(total_income) }}</div>
+        <small class="text-muted">All money received from clients</small>
+    </div>
+    <div class="stat-card expense">
+        <h3><i class="fas fa-arrow-up"></i> Total Expenses</h3>
+        <div class="value">UGX {{ "{:,.0f}".format(total_expenses) }}</div>
+        <small class="text-muted">All money spent on business</small>
+    </div>
+    <div class="stat-card profit">
+        <h3><i class="fas fa-chart-line"></i> Net Profit</h3>
+        <div class="value {% if net_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+            UGX {{ "{:,.0f}".format(net_profit) }}
+        </div>
+        <small class="text-muted">Income minus Expenses</small>
+    </div>
+    <div class="stat-card">
+        <h3><i class="fas fa-clock"></i> Pending Balance</h3>
+        <div class="value">UGX {{ "{:,.0f}".format(total_pending) }}</div>
+        <small class="text-muted">Money clients still owe you</small>
+    </div>
+    <div class="stat-card">
+        <h3><i class="fas fa-camera"></i> Total Assets</h3>
+        <div class="value">UGX {{ "{:,.0f}".format(total_assets) }}</div>
+        <small class="text-muted">Value of your equipment</small>
+    </div>
+</div>
+
+<div class="content-card">
+    <h2><i class="fas fa-history"></i> Recent Transactions</h2>
+    <p class="text-muted" style="margin-bottom: 20px;">Your latest income and expense entries. This helps you track
+        recent financial activity.</p>
+    {% if recent_transactions %}
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Category</th>
+                <th>Type</th>
+                <th>Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in recent_transactions %}
+            <tr>
+                <td>{{ t['date'] }}</td>
+                <td>{{ t['description'] }}</td>
+                <td>{{ t['category'] }}</td>
+                <td>
+                    {% if t['type'] == 'income' %}
+                    <span class="badge badge-success">Income</span>
+                    {% else %}
+                    <span class="badge badge-danger">Expense</span>
+                    {% endif %}
+                </td>
+                <td class="{% if t['type'] == 'income' %}text-success{% else %}text-danger{% endif %}">
+                    {% if t['type'] == 'income' %}+{% else %}-{% endif %}UGX {{ "{:,.0f}".format(t['amount']) }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted">No transactions yet. Start by adding income or expenses from the menu.</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends 'public/base.html' %}
+{% block title %}Services - {{ settings['site_name'] if settings else 'Benjo Moments' }}{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+    <h1>Our Services</h1>
+    <p>Professional photography services for every occasion</p>
+</div>
+
+<section class="section">
+    <div class="container">
+        <div class="services-grid">
+            <div class="service-card">
+                <i class="fas fa-ring"></i>
+                <h3>Wedding Photography</h3>
+                <p>Your wedding day is one of the most important days of your life. We capture every magical moment,
+                    from the preparations to the ceremony and reception. Our wedding packages include pre-wedding
+                    shoots, full day coverage, and professionally edited photos.</p>
+            </div>
+            <div class="service-card">
+                <i class="fas fa-heart"></i>
+                <h3>Kukyala Coverage</h3>
+                <p>Traditional introduction ceremonies deserve special attention. We document these cultural
+                    celebrations with respect and artistic vision, ensuring every meaningful moment is preserved for
+                    generations to come.</p>
+            </div>
+            <div class="service-card">
+                <i class="fas fa-birthday-cake"></i>
+                <h3>Birthday Photography</h3>
+                <p>Whether it's a child's first birthday or a milestone celebration, we create fun, vibrant photos that
+                    capture the joy and excitement of your special day.</p>
+            </div>
+            <div class="service-card">
+                <i class="fas fa-baby"></i>
+                <h3>Baby Photography</h3>
+                <p>From newborn sessions to milestone photos, we specialize in capturing the innocence and beauty of
+                    your little ones. Our baby-friendly studio ensures a safe and comfortable environment.</p>
+            </div>
+            <div class="service-card">
+                <i class="fas fa-user"></i>
+                <h3>Portrait Sessions</h3>
+                <p>Professional portraits for individuals, families, or corporate needs. We work with you to create
+                    images that reflect your personality and style, perfect for social media, business, or personal
+                    keepsakes.</p>
+            </div>
+            <div class="service-card">
+                <i class="fas fa-video"></i>
+                <h3>Video Production</h3>
+                <p>Complement your photos with high-quality video coverage. We offer filming and editing services for
+                    weddings, events, and promotional content with cinematic quality.</p>
+            </div>
+            <div class="service-card">
+                <i class="fas fa-camera"></i>
+                <h3>Event Coverage</h3>
+                <p>Corporate events, graduations, parties, and more. We provide comprehensive coverage to document your
+                    events professionally, capturing candid moments and formal group shots.</p>
+            </div>
+            <div class="service-card">
+                <i class="fas fa-print"></i>
+                <h3>Photo Printing</h3>
+                <p>Turn your digital memories into tangible keepsakes. We offer high-quality prints, canvas wraps, photo
+                    books, and albums to preserve your precious moments.</p>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 60px; padding: 40px; background: #f7fafc; border-radius: 20px;">
+            <h2 style="margin-bottom: 15px;">Ready to Book?</h2>
+            <p style="color: #718096; margin-bottom: 25px;">Contact us today to discuss your photography needs</p>
+            <a href="{{ url_for('public.contact') }}" class="btn btn-primary">Get a Quote</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

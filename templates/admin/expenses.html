@@ -1,0 +1,100 @@
+{% extends 'admin/base.html' %}
+{% block title %}Expenses{% endblock %}
+{% block page_title %}Expenses Management{% endblock %}
+
+{% block content %}
+<!-- Section Explanation -->
+<div class="content-card"
+    style="background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%); color: white; margin-bottom: 25px;">
+    <h2 style="border: none; color: white; margin-bottom: 10px;"><i class="fas fa-arrow-up"></i> Expenses Management
+    </h2>
+    <p style="opacity: 0.9; margin: 0;">This section tracks all money going out of your business. Record any purchases,
+        bills, or costs here. Keeping track of expenses helps you understand where your money goes and calculate your
+        actual profit.</p>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card expense">
+        <h3><i class="fas fa-arrow-up"></i> Total Expenses</h3>
+        <div class="value">UGX {{ "{:,.0f}".format(total) }}</div>
+        <small class="text-muted">All money spent so far</small>
+    </div>
+</div>
+
+<div class="content-card">
+    <h2><i class="fas fa-plus-circle"></i> Add New Expense</h2>
+    <p class="text-muted" style="margin-bottom: 20px;"><strong>How to use:</strong> Record any business expense here -
+        equipment purchases, transport costs, rent, utilities, etc. This helps you track where your money is going.</p>
+    <form action="{{ url_for('admin.add_expense') }}" method="POST">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="date">Date <small style="color: #718096;">(When did you pay?)</small></label>
+                <input type="date" id="date" name="date" required>
+            </div>
+            <div class="form-group">
+                <label for="category">Category <small style="color: #718096;">(What type of expense?)</small></label>
+                <select id="category" name="category" required>
+                    <option value="">Select category</option>
+                    <option value="Equipment">Equipment (cameras, lenses, lights)</option>
+                    <option value="Transport">Transport (fuel, boda, taxi)</option>
+                    <option value="Rent">Rent (office, studio)</option>
+                    <option value="Utilities">Utilities (electricity, water, internet)</option>
+                    <option value="Maintenance">Maintenance (repairs, cleaning)</option>
+                    <option value="Marketing">Marketing (ads, printing, branding)</option>
+                    <option value="Salaries">Salaries (assistants, staff)</option>
+                    <option value="Supplies">Supplies (memory cards, batteries)</option>
+                    <option value="Software">Software (editing, subscriptions)</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="amount">Amount (UGX) <small style="color: #718096;">(How much did you pay?)</small></label>
+                <input type="number" id="amount" name="amount" min="0" step="1000" placeholder="e.g., 150000" required>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="description">Description <small style="color: #718096;">(What did you buy/pay
+                    for?)</small></label>
+            <input type="text" id="description" name="description"
+                placeholder="e.g., Transport to Entebbe for wedding shoot" required>
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Add Expense</button>
+    </form>
+</div>
+
+<div class="content-card">
+    <h2><i class="fas fa-list"></i> Expense Records</h2>
+    <p class="text-muted" style="margin-bottom: 20px;">All your expense entries are listed below. Review this regularly
+        to see where your money is going.</p>
+    {% if records %}
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Category</th>
+                <th>Amount</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in records %}
+            <tr>
+                <td>{{ r['date'] }}</td>
+                <td>{{ r['description'] }}</td>
+                <td>{{ r['category'] }}</td>
+                <td class="text-danger">UGX {{ "{:,.0f}".format(r['amount']) }}</td>
+                <td>
+                    <a href="{{ url_for('admin.delete_expense', id=r['id']) }}" class="btn btn-danger btn-sm"
+                        onclick="return confirm('Are you sure you want to delete this expense record?')"><i
+                            class="fas fa-trash"></i></a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted">No expense records yet. Use the form above to track your business expenses.</p>
+    {% endif %}
+</div>
+{% endblock %}

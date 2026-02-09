@@ -1,0 +1,133 @@
+{% extends 'admin/base.html' %}
+{% block title %}Reports{% endblock %}
+{% block page_title %}Financial Reports{% endblock %}
+
+{% block content %}
+<!-- Section Explanation -->
+<div class="content-card"
+    style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; margin-bottom: 25px;">
+    <h2 style="border: none; color: white; margin-bottom: 10px;"><i class="fas fa-chart-bar"></i> Financial Reports</h2>
+    <p style="opacity: 0.9; margin: 0;">This section helps you see how your business performed over a specific period.
+        Select a date range (like a week, month, or year) to see all income and expenses during that time, and your
+        overall profit or loss.</p>
+</div>
+
+<div class="content-card">
+    <h2><i class="fas fa-filter"></i> Filter by Date Range</h2>
+    <p class="text-muted" style="margin-bottom: 20px;"><strong>How to use:</strong> Select the start date and end date
+        for the period you want to review. For example, to see January's report, pick Jan 1 as start and Jan 31 as end.
+        Then click "Generate Report".</p>
+    <form method="GET" action="{{ url_for('admin.reports') }}">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="start_date">Start Date <small style="color: #718096;">(Beginning of period)</small></label>
+                <input type="date" id="start_date" name="start_date" value="{{ start_date }}" required>
+            </div>
+            <div class="form-group">
+                <label for="end_date">End Date <small style="color: #718096;">(End of period)</small></label>
+                <input type="date" id="end_date" name="end_date" value="{{ end_date }}" required>
+            </div>
+            <div class="form-group" style="align-self: flex-end;">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Generate Report</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+{% if start_date and end_date %}
+<!-- Summary Cards -->
+<div class="content-card" style="margin-bottom: 20px;">
+    <h3 style="color: #4a5568; margin-bottom: 15px;"><i class="fas fa-calculator"></i> Summary for {{ start_date }} to
+        {{ end_date }}</h3>
+    <p class="text-muted" style="margin-bottom: 15px;">Here's how your business performed during this period:</p>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card income">
+        <h3><i class="fas fa-arrow-down"></i> Total Income</h3>
+        <div class="value">UGX {{ "{:,.0f}".format(total_income) }}</div>
+        <small class="text-muted">Money received during this period</small>
+    </div>
+    <div class="stat-card expense">
+        <h3><i class="fas fa-arrow-up"></i> Total Expenses</h3>
+        <div class="value">UGX {{ "{:,.0f}".format(total_expenses) }}</div>
+        <small class="text-muted">Money spent during this period</small>
+    </div>
+    <div class="stat-card profit">
+        <h3><i class="fas fa-chart-line"></i> Net Profit/Loss</h3>
+        <div class="value {% if net_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+            UGX {{ "{:,.0f}".format(net_profit) }}
+        </div>
+        <small class="text-muted">{% if net_profit >= 0 %}You made a profit! 🎉{% else %}You spent more than you
+            earned{% endif %}</small>
+    </div>
+</div>
+
+<div class="content-card">
+    <h2><i class="fas fa-arrow-down text-success"></i> Income Details</h2>
+    <p class="text-muted" style="margin-bottom: 15px;">All money that came in during {{ start_date }} to {{ end_date }}:
+    </p>
+    {% if income_records %}
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Category</th>
+                <th>Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in income_records %}
+            <tr>
+                <td>{{ r['date'] }}</td>
+                <td>{{ r['description'] }}</td>
+                <td>{{ r['category'] }}</td>
+                <td class="text-success">+UGX {{ "{:,.0f}".format(r['amount']) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted">No income recorded during this period.</p>
+    {% endif %}
+</div>
+
+<div class="content-card">
+    <h2><i class="fas fa-arrow-up text-danger"></i> Expense Details</h2>
+    <p class="text-muted" style="margin-bottom: 15px;">All money spent during {{ start_date }} to {{ end_date }}:</p>
+    {% if expense_records %}
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Category</th>
+                <th>Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in expense_records %}
+            <tr>
+                <td>{{ r['date'] }}</td>
+                <td>{{ r['description'] }}</td>
+                <td>{{ r['category'] }}</td>
+                <td class="text-danger">-UGX {{ "{:,.0f}".format(r['amount']) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted">No expenses recorded during this period.</p>
+    {% endif %}
+</div>
+{% else %}
+<div class="content-card">
+    <div style="text-align: center; padding: 40px 20px;">
+        <i class="fas fa-calendar-alt" style="font-size: 48px; color: #cbd5e0; margin-bottom: 15px;"></i>
+        <h3 style="color: #718096;">Select a Date Range</h3>
+        <p class="text-muted">Choose the start and end dates above to see your financial report for that period.</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

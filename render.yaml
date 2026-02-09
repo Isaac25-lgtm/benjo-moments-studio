@@ -1,0 +1,22 @@
+# Render.yaml - Render Deployment Configuration
+# This file configures the Benjo Moments Photography System for deployment on Render
+
+services:
+  - type: web
+    name: benjo-moments-studio
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:create_app() --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: FLASK_ENV
+        value: production
+    autoDeploy: true
+    healthCheckPath: /
+    disk:
+      name: benjo-data
+      mountPath: /data
+      sizeGB: 1

@@ -1,0 +1,36 @@
+# .gitignore - Files to exclude from git
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# Database (local dev only - Render uses persistent disk)
+database.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Uploads (user content)
+static/uploads/*
+!static/uploads/.gitkeep
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local

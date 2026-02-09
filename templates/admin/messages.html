@@ -1,0 +1,111 @@
+{% extends 'admin/base.html' %}
+{% block title %}Client Messages - Admin{% endblock %}
+
+{% block content %}
+<!-- Section Explanation -->
+<div class="content-card"
+    style="background: linear-gradient(135deg, #e94560 0%, #c23a51 100%); color: white; margin-bottom: 25px;">
+    <h2 style="border: none; color: white; margin-bottom: 10px;"><i class="fas fa-envelope"></i> Client Messages</h2>
+    <p style="opacity: 0.9; margin: 0;">This section shows all inquiries from potential clients who filled out the
+        contact form on your website. Here you can read their messages, reply via email or phone, and manage your
+        communications.</p>
+</div>
+
+{% if unread_count > 0 %}
+<div class="content-card"
+    style="background: linear-gradient(135deg, #38a169 0%, #2f855a 100%); color: white; padding: 20px 25px;">
+    <h3 style="margin: 0;"><i class="fas fa-bell"></i> You have {{ unread_count }} new message{{ 's' if unread_count > 1
+        else '' }}!</h3>
+    <p style="margin: 5px 0 0 0; opacity: 0.9;">Read and respond to new inquiries below. Click "Mark as Read" after
+        you've addressed each one.</p>
+</div>
+{% endif %}
+
+<div class="content-card">
+    <h2><i class="fas fa-inbox"></i> All Messages ({{ messages|length }})</h2>
+    <p class="text-muted" style="margin-bottom: 20px;">
+        <strong>Red border</strong> = New/Unread message | <strong>Gray border</strong> = Already read<br>
+        Click <strong>Mark as Read</strong> after responding. Use <strong>Reply via Email</strong> to open your email
+        app with their address.
+    </p>
+
+    {% if messages %}
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+        {% for msg in messages %}
+        <div
+            style="border: 2px solid {% if not msg['is_read'] %}#e94560{% else %}#e2e8f0{% endif %}; border-radius: 12px; padding: 25px; background: {% if not msg['is_read'] %}rgba(233, 69, 96, 0.05){% else %}white{% endif %};">
+            <!-- Message Header -->
+            <div
+                style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                <div>
+                    <h4 style="margin: 0; color: #1a1a2e; font-size: 18px;">
+                        {% if not msg['is_read'] %}<span
+                            style="display: inline-block; width: 10px; height: 10px; background: #e94560; border-radius: 50%; margin-right: 10px;"></span>{%
+                        endif %}
+                        {{ msg['name'] }}
+                    </h4>
+                    <p style="margin: 8px 0 0 0; color: #718096; font-size: 14px;">
+                        <i class="fas fa-envelope" style="width: 16px;"></i> <strong>Email:</strong> {{ msg['email'] }}
+                    </p>
+                    {% if msg['phone'] %}
+                    <p style="margin: 5px 0 0 0; color: #718096; font-size: 14px;">
+                        <i class="fas fa-phone" style="width: 16px;"></i> <strong>Phone:</strong> {{ msg['phone'] }}
+                    </p>
+                    {% endif %}
+                    {% if msg['service'] %}
+                    <p style="margin: 5px 0 0 0; color: #718096; font-size: 14px;">
+                        <i class="fas fa-camera" style="width: 16px;"></i> <strong>Interested in:</strong> {{
+                        msg['service'] }}
+                    </p>
+                    {% endif %}
+                </div>
+                <div style="text-align: right;">
+                    <span style="color: #a0aec0; font-size: 13px;">
+                        <i class="fas fa-clock"></i> {{ msg['created_at'] }}
+                    </span>
+                    {% if not msg['is_read'] %}
+                    <br><span class="badge badge-danger" style="margin-top: 5px;">NEW</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Message Content -->
+            <div style="background: #f7fafc; padding: 20px; border-radius: 8px; margin-bottom: 15px;">
+                <p style="margin: 0 0 10px 0; color: #718096; font-size: 13px;"><strong>Their Message:</strong></p>
+                <p style="margin: 0; color: #333; white-space: pre-wrap; line-height: 1.6;">{{ msg['message'] }}</p>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                {% if not msg['is_read'] %}
+                <a href="{{ url_for('admin.mark_message_read', id=msg['id']) }}" class="btn btn-success btn-sm">
+                    <i class="fas fa-check"></i> Mark as Read
+                </a>
+                {% endif %}
+                <a href="mailto:{{ msg['email'] }}?subject=Re: Your inquiry at Benjo Moments"
+                    class="btn btn-primary btn-sm">
+                    <i class="fas fa-reply"></i> Reply via Email
+                </a>
+                {% if msg['phone'] %}
+                <a href="tel:{{ msg['phone'] }}" class="btn btn-sm" style="background: #48bb78; color: white;">
+                    <i class="fas fa-phone"></i> Call Client
+                </a>
+                {% endif %}
+                <a href="{{ url_for('admin.delete_message', id=msg['id']) }}" class="btn btn-danger btn-sm"
+                    onclick="return confirm('Are you sure you want to delete this message? This cannot be undone.')">
+                    <i class="fas fa-trash"></i> Delete
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 60px 20px;">
+        <i class="fas fa-inbox" style="font-size: 64px; color: #cbd5e0; margin-bottom: 20px;"></i>
+        <h3 style="color: #718096;">No messages yet</h3>
+        <p style="color: #a0aec0;">When clients fill out the contact form on your website, their messages will appear
+            here.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

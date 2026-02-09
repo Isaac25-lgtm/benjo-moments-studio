@@ -1,0 +1,70 @@
+{% extends 'public/base.html' %}
+{% block title %}About Us - {{ settings['site_name'] if settings else 'Benjo Moments' }}{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+    <h1>About Us</h1>
+    <p>Learn more about our story and passion for photography</p>
+</div>
+
+<section class="section">
+    <div class="container">
+        <div class="about-grid">
+            <div class="about-image">
+                <img src="https://images.unsplash.com/photo-1554048612-b6a482bc67e5?w=800" alt="About Benjo Moments">
+            </div>
+            <div class="about-content">
+                <h2>Our Story</h2>
+                <p>{{ settings['about_text'] if settings else 'Benjo Moments is a professional photography studio
+                    dedicated to capturing life\'s most precious moments. With years of experience in wedding, portrait,
+                    and event photography, we bring creativity and passion to every shoot.' }}</p>
+                <p>Founded with a passion for visual storytelling, we believe that every moment deserves to be captured
+                    beautifully. Our team of skilled photographers combines technical expertise with artistic vision to
+                    deliver images that exceed expectations.</p>
+                <p>Whether it's a grand wedding celebration, an intimate family portrait, or a corporate event, we
+                    approach each project with dedication and attention to detail.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section section-gray">
+    <div class="container">
+        <div class="section-title">
+            <h2>Why Choose Us</h2>
+            <p>What sets us apart from the rest</p>
+        </div>
+        <div class="services-grid">
+            <div class="service-card">
+                <i class="fas fa-award"></i>
+                <h3>Professional Quality</h3>
+                <p>We use top-of-the-line equipment and techniques to ensure stunning results every time.</p>
+            </div>
+            <div class="service-card">
+                <i class="fas fa-clock"></i>
+                <h3>Timely Delivery</h3>
+                <p>We value your time and ensure prompt delivery of all edited photos and videos.</p>
+            </div>
+            <div class="service-card">
+                <i class="fas fa-smile"></i>
+                <h3>Client Focused</h3>
+                <p>Your satisfaction is our priority. We work closely with you to bring your vision to life.</p>
+            </div>
+            <div class="service-card">
+                <i class="fas fa-hand-holding-heart"></i>
+                <h3>Personalized Service</h3>
+                <p>Every client is unique. We tailor our services to match your specific needs and preferences.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section section-dark">
+    <div class="container" style="text-align: center;">
+        <h2 style="font-size: 36px; margin-bottom: 20px;">Let's Work Together</h2>
+        <p style="font-size: 18px; opacity: 0.9; margin-bottom: 30px;">Ready to capture your special moments?</p>
+        <a href="{{ url_for('public.contact') }}" class="btn btn-primary">Contact Us</a>
+    </div>
+</section>
+{% endblock %}

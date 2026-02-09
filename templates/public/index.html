@@ -1,0 +1,592 @@
+{% extends 'public/base.html' %}
+{% block title %}{{ settings['site_name'] if settings else 'Benjo Moments' }} - Professional Photography{% endblock %}
+
+{% block extra_styles %}
+<style>
+    /* Hero Slider Styles */
+    .hero-slider {
+        position: relative;
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    .slide {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        transition: opacity 1.5s ease-in-out;
+        background-size: cover;
+        background-position: center;
+    }
+
+    .slide.active {
+        opacity: 1;
+    }
+
+    .slide::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.6));
+    }
+
+    .hero-slider .hero-content {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        color: white;
+        z-index: 10;
+        width: 90%;
+        max-width: 800px;
+    }
+
+    .hero-slider .hero-content h1 {
+        font-size: 56px;
+        font-weight: 800;
+        margin-bottom: 20px;
+        text-shadow: 2px 2px 15px rgba(0, 0, 0, 0.5);
+        animation: fadeInUp 1s ease-out;
+    }
+
+    .hero-slider .hero-content p {
+        font-size: 20px;
+        margin-bottom: 30px;
+        opacity: 0.95;
+        animation: fadeInUp 1s ease-out 0.3s both;
+    }
+
+    .hero-slider .btn {
+        animation: fadeInUp 1s ease-out 0.5s both;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Slider Navigation Dots */
+    .slider-dots {
+        position: absolute;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 12px;
+        z-index: 20;
+    }
+
+    .slider-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.4);
+        cursor: pointer;
+        transition: all 0.3s;
+        border: 2px solid transparent;
+    }
+
+    .slider-dot:hover {
+        background: rgba(255, 255, 255, 0.7);
+    }
+
+    .slider-dot.active {
+        background: white;
+        transform: scale(1.2);
+        border-color: rgba(255, 255, 255, 0.5);
+    }
+
+    /* Slider Arrows */
+    .slider-arrow {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 50px;
+        height: 50px;
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        border-radius: 50%;
+        color: white;
+        font-size: 20px;
+        cursor: pointer;
+        z-index: 20;
+        transition: all 0.3s;
+        backdrop-filter: blur(5px);
+    }
+
+    .slider-arrow:hover {
+        background: rgba(255, 255, 255, 0.4);
+        transform: translateY(-50%) scale(1.1);
+    }
+
+    .slider-prev {
+        left: 30px;
+    }
+
+    .slider-next {
+        right: 30px;
+    }
+
+    @media (max-width: 768px) {
+        .hero-slider .hero-content h1 {
+            font-size: 36px;
+        }
+
+        .slider-arrow {
+            display: none;
+        }
+    }
+
+    /* Dynamic Ken Burns Effect - FACE-FOCUSED for Gallery Images */
+    .gallery-item img {
+        animation: kenburns 25s ease-in-out infinite;
+        transform-origin: center 30%;
+        /* Focus on upper-center where faces usually are */
+    }
+
+    .gallery-item:nth-child(3n+1) img {
+        animation-name: kb-face-zoom;
+        animation-duration: 22s;
+    }
+
+    .gallery-item:nth-child(3n+2) img {
+        animation-name: kb-face-subtle;
+        animation-duration: 25s;
+        animation-delay: -5s;
+    }
+
+    .gallery-item:nth-child(3n+3) img {
+        animation-name: kb-face-center;
+        animation-duration: 23s;
+        animation-delay: -10s;
+    }
+
+    /* Gentle zoom keeping faces centered */
+    @keyframes kb-face-zoom {
+        0% {
+            transform: scale(1.05);
+            transform-origin: center 30%;
+        }
+
+        50% {
+            transform: scale(1.15);
+            transform-origin: center 30%;
+        }
+
+        100% {
+            transform: scale(1.05);
+            transform-origin: center 30%;
+        }
+    }
+
+    /* Subtle horizontal pan - very gentle */
+    @keyframes kb-face-subtle {
+        0% {
+            transform: scale(1.08) translateX(-1%);
+            transform-origin: center 35%;
+        }
+
+        50% {
+            transform: scale(1.12) translateX(1%);
+            transform-origin: center 35%;
+        }
+
+        100% {
+            transform: scale(1.08) translateX(-1%);
+            transform-origin: center 35%;
+        }
+    }
+
+    /* Focus on center faces */
+    @keyframes kb-face-center {
+        0% {
+            transform: scale(1.0);
+            transform-origin: center 30%;
+        }
+
+        50% {
+            transform: scale(1.15);
+            transform-origin: center 30%;
+        }
+
+        100% {
+            transform: scale(1.0);
+            transform-origin: center 30%;
+        }
+    }
+
+    .gallery-item:hover img {
+        animation-play-state: paused;
+        transform: scale(1.0);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Slider Section -->
+<section class="hero-slider">
+    <!-- Background Slides - 10 Beautiful Wedding/Event Photos -->
+    <div class="slide active"
+        style="background-image: url('https://images.unsplash.com/photo-1519741497674-611481863552?w=1920');"></div>
+    <div class="slide"
+        style="background-image: url('https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=1920');"></div>
+    <div class="slide"
+        style="background-image: url('https://images.unsplash.com/photo-1537633552985-df8429e8048b?w=1920');"></div>
+    <div class="slide"
+        style="background-image: url('https://images.unsplash.com/photo-1606216794074-735e91aa2c92?w=1920');"></div>
+    <div class="slide"
+        style="background-image: url('https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?w=1920');"></div>
+    <div class="slide"
+        style="background-image: url('https://images.unsplash.com/photo-1583939003579-730e3918a45a?w=1920');"></div>
+    <div class="slide"
+        style="background-image: url('https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?w=1920');"></div>
+    <div class="slide"
+        style="background-image: url('https://images.unsplash.com/photo-1591604466107-ec97de577aff?w=1920');"></div>
+    <div class="slide"
+        style="background-image: url('https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=1920');"></div>
+    <div class="slide"
+        style="background-image: url('https://images.unsplash.com/photo-1529634806980-85c3dd6d34ac?w=1920');"></div>
+
+    <!-- Hero Content -->
+    <div class="hero-content">
+        <h1>{{ settings['hero_text'] if settings else 'Capturing Your Precious Moments' }}</h1>
+        <p>{{ settings['hero_subtext'] if settings else 'Professional Photography for Weddings, Events & Portraits' }}
+        </p>
+        <a href="{{ url_for('public.gallery') }}" class="btn btn-primary">View Gallery</a>
+        <a href="{{ url_for('public.contact') }}" class="btn btn-outline">Book Now</a>
+    </div>
+
+    <!-- Navigation Arrows -->
+    <button class="slider-arrow slider-prev" onclick="changeSlide(-1)"><i class="fas fa-chevron-left"></i></button>
+    <button class="slider-arrow slider-next" onclick="changeSlide(1)"><i class="fas fa-chevron-right"></i></button>
+
+    <!-- Dots Navigation -->
+    <div class="slider-dots">
+        <span class="slider-dot active" onclick="goToSlide(0)"></span>
+        <span class="slider-dot" onclick="goToSlide(1)"></span>
+        <span class="slider-dot" onclick="goToSlide(2)"></span>
+        <span class="slider-dot" onclick="goToSlide(3)"></span>
+        <span class="slider-dot" onclick="goToSlide(4)"></span>
+        <span class="slider-dot" onclick="goToSlide(5)"></span>
+        <span class="slider-dot" onclick="goToSlide(6)"></span>
+        <span class="slider-dot" onclick="goToSlide(7)"></span>
+        <span class="slider-dot" onclick="goToSlide(8)"></span>
+        <span class="slider-dot" onclick="goToSlide(9)"></span>
+    </div>
+</section>
+
+<!-- Services Section -->
+<section class="section section-dark">
+    <div class="container">
+        <div class="section-title">
+            <h2>Our Services</h2>
+            <p>Professional photography services tailored to your needs</p>
+        </div>
+        <div class="services-grid">
+            <div class="service-card">
+                <i class="fas fa-ring"></i>
+                <h3>Wedding Photography</h3>
+                <p>Capture every magical moment of your special day with our professional wedding coverage.</p>
+            </div>
+            <div class="service-card">
+                <i class="fas fa-heart"></i>
+                <h3>Kukyala Coverage</h3>
+                <p>Traditional introduction ceremonies documented with cultural sensitivity and artistic vision.</p>
+            </div>
+            <div class="service-card">
+                <i class="fas fa-birthday-cake"></i>
+                <h3>Birthday Shoots</h3>
+                <p>Make every birthday unforgettable with stunning photos that tell your story.</p>
+            </div>
+            <div class="service-card">
+                <i class="fas fa-baby"></i>
+                <h3>Baby Photography</h3>
+                <p>Adorable baby portraits and milestone photoshoots for your little ones.</p>
+            </div>
+            <div class="service-card">
+                <i class="fas fa-user"></i>
+                <h3>Portraits</h3>
+                <p>Professional portrait sessions for individuals, families, and corporate needs.</p>
+            </div>
+            <div class="service-card">
+                <i class="fas fa-video"></i>
+                <h3>Video Production</h3>
+                <p>High-quality video coverage and editing for all your special events.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Portfolio Section -->
+<section class="section">
+    <div class="container">
+        <div class="section-title">
+            <h2 class="animate-on-scroll">Featured Work</h2>
+            <p class="animate-on-scroll delay-1">A glimpse of our recent photography projects</p>
+        </div>
+        <div class="gallery-grid">
+            {% if gallery_images %}
+            {% for img in gallery_images %}
+            <div class="gallery-item">
+                <img src="{{ url_for('static', filename='uploads/' + img['album'] + '/' + img['filename']) }}"
+                    alt="{{ img['caption'] or 'Gallery image' }}">
+                <div class="gallery-overlay">
+                    <h3>{{ img['caption'] or 'Beautiful Moment' }}</h3>
+                    <span>{{ img['album'].title() }}</span>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div class="gallery-item">
+                <img src="https://images.unsplash.com/photo-1519741497674-611481863552?w=600" alt="Wedding">
+                <div class="gallery-overlay">
+                    <h3>Beautiful Wedding</h3>
+                    <span>Wedding Photography</span>
+                </div>
+            </div>
+            <div class="gallery-item">
+                <img src="https://images.unsplash.com/photo-1537633552985-df8429e8048b?w=600" alt="Portrait">
+                <div class="gallery-overlay">
+                    <h3>Elegant Portrait</h3>
+                    <span>Portrait Session</span>
+                </div>
+            </div>
+            <div class="gallery-item">
+                <img src="https://images.unsplash.com/photo-1504439904031-93ded9f93e4e?w=600" alt="Event">
+                <div class="gallery-overlay">
+                    <h3>Special Event</h3>
+                    <span>Event Coverage</span>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        <div style="text-align: center; margin-top: 40px;">
+            <a href="{{ url_for('public.gallery') }}" class="btn btn-primary">View All Photos</a>
+        </div>
+    </div>
+</section>
+
+<!-- About Section -->
+<section class="section section-gray">
+    <div class="container">
+        <div class="about-grid">
+            <div class="about-image">
+                <img src="https://images.unsplash.com/photo-1554048612-b6a482bc67e5?w=800" alt="About Us">
+            </div>
+            <div class="about-content">
+                <h2>About Us</h2>
+                <p>{{ settings['about_text'] if settings else 'Benjo Moments is a professional photography studio
+                    dedicated to capturing life\'s most precious moments. With years of experience in wedding, portrait,
+                    and event photography, we bring creativity and passion to every shoot.' }}</p>
+                <p>Our team of skilled photographers uses state-of-the-art equipment and techniques to deliver stunning
+                    images that you'll treasure forever.</p>
+                <a href="{{ url_for('public.about') }}" class="btn btn-primary">Learn More</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Pricing Section -->
+<section class="pricing-section">
+    <div class="container">
+        <div class="section-title">
+            <h2 class="animate-on-scroll">Our Packages</h2>
+            <p class="animate-on-scroll delay-1">Flexible pricing to fit every occasion and budget</p>
+        </div>
+        <div class="pricing-grid">
+            {% if pricing_packages %}
+            {% for pkg in pricing_packages %}
+            <div
+                class="pricing-card {{ 'featured' if pkg['is_featured'] else '' }} animate-scale delay-{{ loop.index }}">
+                <div class="pricing-icon">
+                    <i class="fas {{ pkg['icon'] }}"></i>
+                </div>
+                <h3>{{ pkg['name'] }}</h3>
+                <p style="{{ 'opacity: 0.7;' if pkg['is_featured'] else 'color: #718096;' }}">{{ pkg['description'] }}
+                </p>
+                {% set price_formatted = "{:,.0f}".format(pkg['price']) %}
+                {% if pkg['price'] >= 1000000 %}
+                <div class="pricing-price">UGX {{ "{:.1f}M".format(pkg['price'] / 1000000) }}<span>{{ pkg['price_label']
+                        }}</span></div>
+                {% elif pkg['price'] >= 1000 %}
+                <div class="pricing-price">UGX {{ "{:.0f}K".format(pkg['price'] / 1000) }}<span>{{ pkg['price_label']
+                        }}</span></div>
+                {% else %}
+                <div class="pricing-price">UGX {{ price_formatted }}<span>{{ pkg['price_label'] }}</span></div>
+                {% endif %}
+                <ul class="pricing-features">
+                    {% for feature in pkg['features'].split('|') %}
+                    <li><i class="fas fa-check"></i> {{ feature }}</li>
+                    {% endfor %}
+                </ul>
+                <a href="{{ url_for('public.contact') }}" class="btn btn-primary"
+                    style="width: 100%;{{ ' background: #e94560;' if pkg['is_featured'] else '' }}">
+                    {{ 'Get Quote' if pkg['is_featured'] else 'Book Now' }}
+                </a>
+            </div>
+            {% endfor %}
+            {% else %}
+            <!-- Default packages if none in database -->
+            <div class="pricing-card animate-scale delay-1">
+                <div class="pricing-icon"><i class="fas fa-camera"></i></div>
+                <h3>Basic</h3>
+                <p style="color: #718096;">Perfect for portraits & small events</p>
+                <div class="pricing-price">UGX 300K<span>/session</span></div>
+                <ul class="pricing-features">
+                    <li><i class="fas fa-check"></i> 2 Hours Coverage</li>
+                    <li><i class="fas fa-check"></i> 50+ Edited Photos</li>
+                    <li><i class="fas fa-check"></i> Digital Download</li>
+                </ul>
+                <a href="{{ url_for('public.contact') }}" class="btn btn-primary" style="width: 100%;">Book Now</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<!-- Contact Us Section -->
+<section id="contact" class="section section-dark">
+    <div class="container">
+        <div class="section-title">
+            <h2>Contact Us</h2>
+            <p>Get in touch to book your session or ask questions</p>
+        </div>
+        <div class="contact-grid">
+            <div class="contact-info" style="color: rgba(255,255,255,0.9);">
+                <h3 style="color: white; margin-bottom: 25px;">Let's Create Beautiful Memories</h3>
+                <p style="margin-bottom: 30px; opacity: 0.85;">Ready to capture your special moments? Reach out to us
+                    and let's discuss how we can make your event unforgettable.</p>
+
+                <div class="contact-item" style="margin-bottom: 20px;">
+                    <i class="fas fa-phone"></i>
+                    <div>
+                        <strong>Phone</strong><br>
+                        {{ settings['contact_phone'] if settings else '+256 700 000 000' }}
+                    </div>
+                </div>
+                <div class="contact-item" style="margin-bottom: 20px;">
+                    <i class="fas fa-envelope"></i>
+                    <div>
+                        <strong>Email</strong><br>
+                        {{ settings['contact_email'] if settings else 'info@benjomoments.com' }}
+                    </div>
+                </div>
+                <div class="contact-item" style="margin-bottom: 20px;">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <div>
+                        <strong>Location</strong><br>
+                        {{ settings['address'] if settings else 'Kampala, Uganda' }}
+                    </div>
+                </div>
+
+                <div class="social-links" style="margin-top: 30px;">
+                    <a href="#"><i class="fab fa-facebook-f"></i></a>
+                    <a href="#"><i class="fab fa-instagram"></i></a>
+                    <a href="#"><i class="fab fa-twitter"></i></a>
+                    <a href="#"><i class="fab fa-whatsapp"></i></a>
+                </div>
+            </div>
+
+            <div class="contact-form" style="background: white; padding: 40px; border-radius: 20px;">
+                <h3 style="margin-bottom: 25px; color: #1a1a2e;">Send Us a Message</h3>
+                <form action="{{ url_for('public.submit_contact') }}" method="POST">
+                    <input type="text" name="name" placeholder="Your Full Name *" required style="background: #f7fafc;">
+                    <input type="email" name="email" placeholder="Your Email Address *" required
+                        style="background: #f7fafc;">
+                    <input type="tel" name="phone" placeholder="Your Phone Number" style="background: #f7fafc;">
+                    <select name="service"
+                        style="width: 100%; padding: 15px 20px; border: 2px solid #e2e8f0; border-radius: 10px; margin-bottom: 15px; font-family: inherit; font-size: 15px; background: #f7fafc; color: #333;">
+                        <option value="">Select Service (Optional)</option>
+                        <option value="Wedding Photography">Wedding Photography</option>
+                        <option value="Kukyala Coverage">Kukyala Coverage</option>
+                        <option value="Birthday Shoot">Birthday Shoot</option>
+                        <option value="Baby Photography">Baby Photography</option>
+                        <option value="Portrait Session">Portrait Session</option>
+                        <option value="Event Coverage">Event Coverage</option>
+                        <option value="Video Production">Video Production</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <textarea name="message" placeholder="Your Message *" rows="4" required
+                        style="background: #f7fafc; resize: vertical;"></textarea>
+                    <button type="submit" class="btn btn-primary" style="width: 100%; padding: 16px;">
+                        <i class="fas fa-paper-plane"></i> Send Message
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Hero Slider Script -->
+<script>
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.slide');
+    const dots = document.querySelectorAll('.slider-dot');
+    const totalSlides = slides.length;
+    let autoSlideInterval;
+
+    function showSlide(index) {
+        // Handle wrap-around
+        if (index >= totalSlides) currentSlide = 0;
+        else if (index < 0) currentSlide = totalSlides - 1;
+        else currentSlide = index;
+
+        // Update slides
+        slides.forEach((slide, i) => {
+            slide.classList.remove('active');
+            if (i === currentSlide) slide.classList.add('active');
+        });
+
+        // Update dots
+        dots.forEach((dot, i) => {
+            dot.classList.remove('active');
+            if (i === currentSlide) dot.classList.add('active');
+        });
+    }
+
+    function changeSlide(direction) {
+        showSlide(currentSlide + direction);
+        resetAutoSlide();
+    }
+
+    function goToSlide(index) {
+        showSlide(index);
+        resetAutoSlide();
+    }
+
+    function autoSlide() {
+        showSlide(currentSlide + 1);
+    }
+
+    function resetAutoSlide() {
+        clearInterval(autoSlideInterval);
+        autoSlideInterval = setInterval(autoSlide, 3000);
+    }
+
+    // Start auto-sliding
+    autoSlideInterval = setInterval(autoSlide, 3000);
+
+    // Pause on hover
+    document.querySelector('.hero-slider').addEventListener('mouseenter', () => {
+        clearInterval(autoSlideInterval);
+    });
+
+    document.querySelector('.hero-slider').addEventListener('mouseleave', () => {
+        autoSlideInterval = setInterval(autoSlide, 3000);
+    });
+</script>
+{% endblock %}

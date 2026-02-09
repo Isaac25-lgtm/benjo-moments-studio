@@ -1,0 +1,106 @@
+{% extends 'admin/base.html' %}
+
+{% block content %}
+<div class="admin-header">
+    <h1><i class="fas fa-tags"></i> Pricing Packages</h1>
+    <a href="{{ url_for('admin.add_pricing') }}" class="btn btn-primary"><i class="fas fa-plus"></i> Add Package</a>
+</div>
+
+<!-- Section Description -->
+<div class="section-description">
+    <h3><i class="fas fa-info-circle"></i> About Pricing Packages</h3>
+    <p>Manage your service packages that appear on the website homepage. Visitors can see your pricing and click to
+        inquire about specific packages.</p>
+
+    <div class="how-to-use">
+        <h4><i class="fas fa-lightbulb"></i> How to Use</h4>
+        <ul>
+            <li><strong>Add Package:</strong> Click "Add Package" to create a new pricing tier</li>
+            <li><strong>Edit:</strong> Click the edit button to change package details</li>
+            <li><strong>Toggle:</strong> Enable/disable packages without deleting them</li>
+            <li><strong>Featured:</strong> Mark one package as "Most Popular" to highlight it</li>
+            <li><strong>Display Order:</strong> Lower numbers appear first on the website</li>
+        </ul>
+    </div>
+
+    <div class="field-help">
+        <h4><i class="fas fa-question-circle"></i> Field Explanations</h4>
+        <div class="field-grid">
+            <div class="field-item">
+                <strong>Name:</strong> Package title (e.g., "Basic", "Premium")
+            </div>
+            <div class="field-item">
+                <strong>Price:</strong> Amount in UGX (e.g., 300000 for 300K)
+            </div>
+            <div class="field-item">
+                <strong>Features:</strong> List benefits, separated by | character
+            </div>
+            <div class="field-item">
+                <strong>Icon:</strong> FontAwesome icon name (fa-camera, fa-heart, fa-video)
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if packages %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Order</th>
+                    <th>Icon</th>
+                    <th>Name</th>
+                    <th>Price</th>
+                    <th>Featured</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pkg in packages %}
+                <tr>
+                    <td>{{ pkg['display_order'] }}</td>
+                    <td><i class="fas {{ pkg['icon'] }}"></i></td>
+                    <td><strong>{{ pkg['name'] }}</strong><br><small>{{ pkg['description'] }}</small></td>
+                    <td>UGX {{ "{:,}".format(pkg['price']) }}{{ pkg['price_label'] }}</td>
+                    <td>
+                        {% if pkg['is_featured'] %}
+                        <span class="badge badge-success">★ Featured</span>
+                        {% else %}
+                        <span class="badge badge-secondary">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if pkg['is_active'] %}
+                        <span class="badge badge-success">Active</span>
+                        {% else %}
+                        <span class="badge badge-danger">Hidden</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('admin.edit_pricing', id=pkg['id']) }}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <a href="{{ url_for('admin.toggle_pricing', id=pkg['id']) }}" class="btn btn-sm btn-warning"
+                            title="Toggle visibility">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                        <a href="{{ url_for('admin.delete_pricing', id=pkg['id']) }}" class="btn btn-sm btn-danger"
+                            onclick="return confirm('Delete this package?')">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-tags"></i>
+            <p>No pricing packages yet. <a href="{{ url_for('admin.add_pricing') }}">Add your first package</a></p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,92 @@
+{% extends 'admin/base.html' %}
+{% block title %}Gallery Manager{% endblock %}
+{% block page_title %}Gallery Manager{% endblock %}
+
+{% block content %}
+<!-- Section Explanation -->
+<div class="content-card"
+    style="background: linear-gradient(135deg, #e94560 0%, #c23a51 100%); color: white; margin-bottom: 25px;">
+    <h2 style="border: none; color: white; margin-bottom: 10px;"><i class="fas fa-images"></i> Gallery Manager</h2>
+    <p style="opacity: 0.9; margin: 0;">This section controls the images that appear on your public website gallery.
+        Upload your best work here and organize them into albums. You can show or hide images as needed - only
+        "Published" images appear on the website.</p>
+</div>
+
+<div class="content-card">
+    <h2><i class="fas fa-upload"></i> Upload New Image</h2>
+    <p class="text-muted" style="margin-bottom: 20px;"><strong>How to use:</strong> Click "Choose File" to select a
+        photo from your computer. Pick the album category it belongs to (Weddings, Kukyala, etc.), optionally add a
+        caption, then click "Upload Image". The image will appear on your website gallery.</p>
+    <form action="{{ url_for('admin.upload_image') }}" method="POST" enctype="multipart/form-data">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="image">Select Image <small style="color: #718096;">(JPG, PNG, WebP)</small></label>
+                <input type="file" id="image" name="image" accept="image/*" required>
+            </div>
+            <div class="form-group">
+                <label for="album">Album <small style="color: #718096;">(Category for this image)</small></label>
+                <select id="album" name="album" required>
+                    {% for a in albums %}
+                    <option value="{{ a }}">{{ a.title() }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="caption">Caption <small style="color: #718096;">(Short description -
+                        optional)</small></label>
+                <input type="text" id="caption" name="caption" placeholder="e.g., John & Mary's Wedding">
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-upload"></i> Upload Image</button>
+    </form>
+</div>
+
+<div class="content-card">
+    <h2><i class="fas fa-images"></i> Gallery Images ({{ images|length }} total)</h2>
+    <p class="text-muted" style="margin-bottom: 20px;">
+        <strong>Green "Published"</strong> = Visible on your website | <strong>Yellow "Hidden"</strong> = Not visible to
+        public<br>
+        Click <strong>Hide/Show</strong> to toggle visibility. Click the <strong>red trash icon</strong> to delete an
+        image.
+    </p>
+    {% if images %}
+    <div
+        style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; margin-top: 20px;">
+        {% for img in images %}
+        <div style="background: #f7fafc; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <img src="{{ url_for('static', filename='uploads/' + img['album'] + '/' + img['filename']) }}"
+                alt="{{ img['caption'] or 'Gallery image' }}"
+                style="width: 100%; height: 150px; object-fit: cover; object-position: center top;">
+            <div style="padding: 15px;">
+                <div style="font-size: 12px; color: #718096; margin-bottom: 5px;">
+                    <span class="badge {% if img['published'] %}badge-success{% else %}badge-warning{% endif %}">
+                        {% if img['published'] %}Published ✓{% else %}Hidden{% endif %}
+                    </span>
+                    <span style="margin-left: 5px;">{{ img['album'].title() }}</span>
+                </div>
+                {% if img['caption'] %}
+                <p style="font-size: 13px; color: #2d3748; margin: 5px 0;">{{ img['caption'][:30] }}{% if
+                    img['caption']|length > 30 %}...{% endif %}</p>
+                {% endif %}
+                <div style="display: flex; gap: 8px; margin-top: 10px;">
+                    <a href="{{ url_for('admin.toggle_image', id=img['id']) }}"
+                        class="btn btn-sm {% if img['published'] %}btn-warning{% else %}btn-success{% endif %}">
+                        <i class="fas {% if img['published'] %}fa-eye-slash{% else %}fa-eye{% endif %}"></i>
+                        {% if img['published'] %}Hide{% else %}Show{% endif %}
+                    </a>
+                    <a href="{{ url_for('admin.delete_image', id=img['id']) }}" class="btn btn-danger btn-sm"
+                        onclick="return confirm('Are you sure you want to delete this image? This cannot be undone.')">
+                        <i class="fas fa-trash"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-muted"><i class="fas fa-info-circle"></i> No images uploaded yet. Use the form above to add images to
+        your gallery!
+    </p>
+    {% endif %}
+</div>
+{% endblock %}
