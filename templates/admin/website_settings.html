@@ -87,4 +87,55 @@
         </div>
     </form>
 </div>
+
+<!-- Hero Slider Images Manager -->
+<div class="content-card">
+    <h2><i class="fas fa-images"></i> Hero Slider Images</h2>
+    <p class="text-muted" style="margin-bottom: 20px;"><strong>How to use:</strong> These are the big background images
+        that slide on the homepage behind your hero text. Upload your best photos here. If no images are uploaded,
+        default stock photos will be shown.</p>
+
+    <!-- Upload Form -->
+    <form action="{{ url_for('admin.upload_hero_image') }}" method="POST" enctype="multipart/form-data"
+        style="margin-bottom: 25px; padding: 20px; background: #f7fafc; border-radius: 8px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="hero_image">Choose Image <small style="color: #718096;">(JPG, PNG, WEBP - high resolution recommended)</small></label>
+                <input type="file" id="hero_image" name="hero_image" accept="image/*" required>
+            </div>
+            <div class="form-group">
+                <label for="display_order">Display Order <small style="color: #718096;">(Lower number = shown first)</small></label>
+                <input type="number" id="display_order" name="display_order" value="0" min="0">
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-upload"></i> Upload Hero Image</button>
+    </form>
+
+    <!-- Current Hero Images -->
+    {% if hero_images %}
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;">
+        {% for img in hero_images %}
+        <div style="position: relative; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <img src="{{ url_for('public.hero_image_file', filename=img['filename']) }}"
+                style="width: 100%; height: 160px; object-fit: cover; display: block;"
+                alt="Hero slide {{ loop.index }}">
+            <div style="padding: 10px; background: white; display: flex; justify-content: space-between; align-items: center;">
+                <small style="color: #718096;">Order: {{ img['display_order'] }}</small>
+                <form action="{{ url_for('admin.delete_hero_image', id=img['id']) }}" method="POST" style="display: inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger btn-sm"
+                        onclick="return confirm('Delete this hero image?')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-muted"><i class="fas fa-info-circle"></i> No hero images uploaded yet. Default stock photos are being
+        used. Upload your own photos above to replace them.</p>
+    {% endif %}
+</div>
 {% endblock %}

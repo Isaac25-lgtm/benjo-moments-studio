@@ -239,7 +239,14 @@
 {% block content %}
 <!-- Hero Slider Section -->
 <section class="hero-slider">
-    <!-- Background Slides - 10 Beautiful Wedding/Event Photos -->
+    {% if hero_images %}
+    <!-- Admin-uploaded hero images -->
+    {% for img in hero_images %}
+    <div class="slide {{ 'active' if loop.first else '' }}"
+        style="background-image: url('{{ url_for('public.hero_image_file', filename=img['filename']) }}');"></div>
+    {% endfor %}
+    {% else %}
+    <!-- Default stock photos (shown when no images uploaded) -->
     <div class="slide active"
         style="background-image: url('https://images.unsplash.com/photo-1519741497674-611481863552?w=1920');"></div>
     <div class="slide"
@@ -250,16 +257,7 @@
         style="background-image: url('https://images.unsplash.com/photo-1606216794074-735e91aa2c92?w=1920');"></div>
     <div class="slide"
         style="background-image: url('https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?w=1920');"></div>
-    <div class="slide"
-        style="background-image: url('https://images.unsplash.com/photo-1583939003579-730e3918a45a?w=1920');"></div>
-    <div class="slide"
-        style="background-image: url('https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?w=1920');"></div>
-    <div class="slide"
-        style="background-image: url('https://images.unsplash.com/photo-1591604466107-ec97de577aff?w=1920');"></div>
-    <div class="slide"
-        style="background-image: url('https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=1920');"></div>
-    <div class="slide"
-        style="background-image: url('https://images.unsplash.com/photo-1529634806980-85c3dd6d34ac?w=1920');"></div>
+    {% endif %}
 
     <!-- Hero Content -->
     <div class="hero-content">
@@ -276,16 +274,10 @@
 
     <!-- Dots Navigation -->
     <div class="slider-dots">
-        <span class="slider-dot active" onclick="goToSlide(0)"></span>
-        <span class="slider-dot" onclick="goToSlide(1)"></span>
-        <span class="slider-dot" onclick="goToSlide(2)"></span>
-        <span class="slider-dot" onclick="goToSlide(3)"></span>
-        <span class="slider-dot" onclick="goToSlide(4)"></span>
-        <span class="slider-dot" onclick="goToSlide(5)"></span>
-        <span class="slider-dot" onclick="goToSlide(6)"></span>
-        <span class="slider-dot" onclick="goToSlide(7)"></span>
-        <span class="slider-dot" onclick="goToSlide(8)"></span>
-        <span class="slider-dot" onclick="goToSlide(9)"></span>
+        {% set slide_count = hero_images|length if hero_images else 5 %}
+        {% for i in range(slide_count) %}
+        <span class="slider-dot {{ 'active' if loop.first else '' }}" onclick="goToSlide({{ i }})"></span>
+        {% endfor %}
     </div>
 </section>
 
@@ -475,7 +467,7 @@
                     <i class="fas fa-phone"></i>
                     <div>
                         <strong>Phone</strong><br>
-                        {{ settings['contact_phone'] if settings else '+256 700 000 000' }}
+                        {{ settings['contact_phone'] if settings else '0759989861 / 0778728089' }}
                     </div>
                 </div>
                 <div class="contact-item" style="margin-bottom: 20px;">
@@ -489,7 +481,7 @@
                     <i class="fas fa-map-marker-alt"></i>
                     <div>
                         <strong>Location</strong><br>
-                        {{ settings['address'] if settings else 'Kampala, Uganda' }}
+                        {{ settings['address'] if settings else 'Carol House, Plot 40, next to Bible House, along Bombo Road, Wandegeya' }}
                     </div>
                 </div>
 

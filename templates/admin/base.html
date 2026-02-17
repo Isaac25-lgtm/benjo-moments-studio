@@ -139,6 +139,27 @@
             background: #c53030;
         }
 
+        .btn-logout-form {
+            margin: 0;
+        }
+
+        .btn-logout-form button {
+            background: #e53e3e;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 14px;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.3s;
+        }
+
+        .btn-logout-form button:hover {
+            background: #c53030;
+        }
+
         /* Cards */
         .stats-grid {
             display: grid;
@@ -433,7 +454,7 @@
                         class="fas fa-cog"></i> Website Settings</a></li>
 
             <li class="sidebar-section">Preview</li>
-            <li><a href="{{ url_for('public.index') }}" target="_blank"><i class="fas fa-external-link-alt"></i> View
+            <li><a href="{{ url_for('public.index') }}" target="_blank" rel="noopener"><i class="fas fa-external-link-alt"></i> View
                     Website</a></li>
         </ul>
     </aside>
@@ -444,7 +465,10 @@
             <h1>{% block page_title %}Dashboard{% endblock %}</h1>
             <div class="header-user">
                 <span>{{ session.get('user_name', 'Admin') }}</span>
-                <a href="{{ url_for('auth.logout') }}" class="btn-logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                <form action="{{ url_for('auth.logout') }}" method="POST" class="btn-logout-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit"><i class="fas fa-sign-out-alt"></i> Logout</button>
+                </form>
             </div>
         </header>
 

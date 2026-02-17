@@ -3,6 +3,7 @@ Authentication module for Benjo Moments Photography System.
 Handles login, logout, and session protection.
 """
 from functools import wraps
+import secrets
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from werkzeug.security import check_password_hash
 import database
@@ -20,6 +21,7 @@ def login_required(f):
     return decorated_function
 
 @auth.route('/login', methods=['GET', 'POST'])
+@auth.route('/admin/login', methods=['GET', 'POST'])
 def login():
     """Handle user login."""
     if 'user_id' in session:
@@ -35,19 +37,21 @@ def login():
         
         user = database.get_user_by_email(email)
         
-        # Allow any password for easy access (development mode)
-        if user:
+        if user and check_password_hash(user['password_hash'], password):
+            session.clear()
             session['user_id'] = user['id']
             session['user_name'] = user['name']
             session['user_email'] = user['email']
+            session['_csrf_token'] = secrets.token_urlsafe(32)
             flash('Welcome back, ' + user['name'] + '!', 'success')
             return redirect(url_for('admin.dashboard'))
         else:
-            flash('Invalid email.', 'error')
+            flash('Invalid email or password.', 'error')
     
     return render_template('auth/login.html')
 
-@auth.route('/logout')
+@auth.route('/logout', methods=['POST'])
+@login_required
 def logout():
     """Handle user logout."""
     session.clear()

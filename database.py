@@ -2,15 +2,21 @@
 Database module for Benjo Moments Photography System.
 Handles database initialization, schema creation, and CRUD operations.
 """
+import os
 import sqlite3
+import secrets
 from datetime import datetime
 from werkzeug.security import generate_password_hash
 import config
 
 def get_db_connection():
     """Create a database connection with row factory."""
+    db_dir = os.path.dirname(config.DATABASE_PATH)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
     conn = sqlite3.connect(config.DATABASE_PATH)
     conn.row_factory = sqlite3.Row
+    conn.execute('PRAGMA foreign_keys = ON')
     return conn
 
 def init_db():
@@ -113,13 +119,23 @@ def init_db():
             hero_text TEXT DEFAULT 'Capturing Your Precious Moments',
             hero_subtext TEXT DEFAULT 'Professional Photography Services',
             about_text TEXT DEFAULT 'We are a professional photography studio specializing in weddings, portraits, and special events.',
-            contact_phone TEXT DEFAULT '+256 700 000 000',
+            contact_phone TEXT DEFAULT '0759989861 / 0778728089',
             contact_email TEXT DEFAULT 'info@benjomoments.com',
-            address TEXT DEFAULT 'Kampala, Uganda',
+            address TEXT DEFAULT 'Carol House, Plot 40, next to Bible House, along Bombo Road, Wandegeya',
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     
+    # Hero images table - slider images on homepage
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS hero_images (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            filename TEXT NOT NULL,
+            display_order INTEGER DEFAULT 0,
+            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
     # Contact messages table - stores client inquiries
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS contact_messages (
@@ -156,6 +172,9 @@ def init_db():
 
 def create_default_admin():
     """Create default admin user if not exists."""
+    if not config.DEFAULT_ADMIN_PASSWORD:
+        return
+
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -186,9 +205,9 @@ def init_default_settings():
             'Capturing Your Precious Moments',
             'Professional Photography for Weddings, Events & Portraits',
             'Benjo Moments is a professional photography studio dedicated to capturing life\'s most precious moments. With years of experience in wedding, portrait, and event photography, we bring creativity and passion to every shoot.',
-            '+256 700 000 000',
+            '0759989861 / 0778728089',
             'info@benjomoments.com',
-            'Kampala, Uganda'
+            'Carol House, Plot 40, next to Bible House, along Bombo Road, Wandegeya'
         ))
         conn.commit()
     
@@ -276,6 +295,7 @@ def update_customer_payment(customer_id, amount_paid):
 
 def delete_customer(customer_id):
     conn = get_db_connection()
+    conn.execute('DELETE FROM invoices WHERE customer_id = ?', (customer_id,))
     conn.execute('DELETE FROM customers WHERE id = ?', (customer_id,))
     conn.commit()
     conn.close()
@@ -298,12 +318,33 @@ def get_all_invoices():
     conn.close()
     return rows
 
+def _generate_invoice_number_with_conn(conn):
+    """Generate a unique invoice number using date + random suffix."""
+    for _ in range(20):
+        candidate = f"INV-{datetime.now().strftime('%Y%m%d')}-{secrets.token_hex(2).upper()}"
+        row = conn.execute('SELECT 1 FROM invoices WHERE invoice_number = ?', (candidate,)).fetchone()
+        if not row:
+            return candidate
+    raise RuntimeError('Unable to generate unique invoice number.')
+
 def add_invoice(invoice_number, customer_id, date, amount):
     conn = get_db_connection()
-    conn.execute('INSERT INTO invoices (invoice_number, customer_id, date, amount) VALUES (?, ?, ?, ?)',
-                 (invoice_number, customer_id, date, amount))
-    conn.commit()
-    conn.close()
+    try:
+        for _ in range(20):
+            candidate = (invoice_number or '').strip() or _generate_invoice_number_with_conn(conn)
+            try:
+                conn.execute('INSERT INTO invoices (invoice_number, customer_id, date, amount) VALUES (?, ?, ?, ?)',
+                             (candidate, customer_id, date, amount))
+                conn.commit()
+                return candidate
+            except sqlite3.IntegrityError:
+                if invoice_number:
+                    raise ValueError('Invoice number already exists. Use a different number.')
+                continue
+    finally:
+        conn.close()
+
+    raise RuntimeError('Unable to create invoice due to repeated invoice number conflicts.')
 
 def update_invoice_status(invoice_id, status):
     conn = get_db_connection()
@@ -319,9 +360,10 @@ def delete_invoice(invoice_id):
 
 def generate_invoice_number():
     conn = get_db_connection()
-    result = conn.execute('SELECT COUNT(*) as count FROM invoices').fetchone()
-    conn.close()
-    return f"INV-{result['count'] + 1:04d}"
+    try:
+        return _generate_invoice_number_with_conn(conn)
+    finally:
+        conn.close()
 
 # --- Assets ---
 def get_all_assets():
@@ -395,12 +437,21 @@ def get_website_settings():
 
 def update_website_settings(site_name, hero_text, hero_subtext, about_text, contact_phone, contact_email, address):
     conn = get_db_connection()
-    conn.execute('''
-        UPDATE website_settings 
-        SET site_name = ?, hero_text = ?, hero_subtext = ?, about_text = ?, 
-            contact_phone = ?, contact_email = ?, address = ?, updated_at = ?
-        WHERE id = 1
-    ''', (site_name, hero_text, hero_subtext, about_text, contact_phone, contact_email, address, datetime.now()))
+    settings_row = conn.execute('SELECT id FROM website_settings LIMIT 1').fetchone()
+
+    if settings_row:
+        conn.execute('''
+            UPDATE website_settings
+            SET site_name = ?, hero_text = ?, hero_subtext = ?, about_text = ?,
+                contact_phone = ?, contact_email = ?, address = ?, updated_at = ?
+            WHERE id = ?
+        ''', (site_name, hero_text, hero_subtext, about_text, contact_phone, contact_email, address, datetime.now(), settings_row['id']))
+    else:
+        conn.execute('''
+            INSERT INTO website_settings (site_name, hero_text, hero_subtext, about_text, contact_phone, contact_email, address, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (site_name, hero_text, hero_subtext, about_text, contact_phone, contact_email, address, datetime.now()))
+
     conn.commit()
     conn.close()
 
@@ -568,7 +619,34 @@ def create_default_pricing_packages():
                 INSERT INTO pricing_packages (name, description, price, price_label, icon, features, is_featured, display_order)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''', pkg)
-        
+
         conn.commit()
-    
+
     conn.close()
+
+
+# ===== HERO IMAGES =====
+
+def get_all_hero_images():
+    """Get all hero images ordered by display_order."""
+    conn = get_db_connection()
+    rows = conn.execute('SELECT * FROM hero_images ORDER BY display_order ASC, id ASC').fetchall()
+    conn.close()
+    return rows
+
+def add_hero_image(filename, display_order):
+    """Add a new hero image."""
+    conn = get_db_connection()
+    conn.execute('INSERT INTO hero_images (filename, display_order) VALUES (?, ?)',
+                 (filename, display_order))
+    conn.commit()
+    conn.close()
+
+def delete_hero_image(image_id):
+    """Delete a hero image and return its filename."""
+    conn = get_db_connection()
+    row = conn.execute('SELECT filename FROM hero_images WHERE id = ?', (image_id,)).fetchone()
+    conn.execute('DELETE FROM hero_images WHERE id = ?', (image_id,))
+    conn.commit()
+    conn.close()
+    return row

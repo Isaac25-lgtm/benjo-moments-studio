@@ -6,7 +6,7 @@ services:
     name: benjo-moments-studio
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn wsgi:app --bind 0.0.0.0:$PORT
+    startCommand: gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.0"
@@ -14,5 +14,17 @@ services:
         generateValue: true
       - key: FLASK_ENV
         value: production
+      - key: DATABASE_PATH
+        value: /opt/render/project/data/database.db
+      - key: UPLOAD_FOLDER
+        value: /opt/render/project/data/uploads
+      - key: DEFAULT_ADMIN_EMAIL
+        value: admin@benjomoments.com
+      - key: DEFAULT_ADMIN_PASSWORD
+        sync: false
+    disk:
+      name: benjo-moments-data
+      mountPath: /opt/render/project/data
+      sizeGB: 1
     autoDeploy: true
     healthCheckPath: /
