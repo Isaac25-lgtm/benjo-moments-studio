@@ -1,11 +1,12 @@
-# Render.yaml - Render Deployment Configuration
-# Benjo Moments Photography System
+# Render.yaml — Benjo Moments Photography System
+# Deploys to Render with Neon PostgreSQL for persistence.
 
 services:
   - type: web
     name: benjo-moments-studio
     runtime: python
     buildCommand: pip install -r requirements.txt
+    # alembic upgrade runs inside app.py startup — no separate pre-deploy step needed
     startCommand: gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --keep-alive 5 --log-level info
     envVars:
       - key: PYTHON_VERSION
@@ -14,8 +15,12 @@ services:
         generateValue: true
       - key: FLASK_ENV
         value: production
-      - key: DATABASE_PATH
-        value: /opt/render/project/data/database.db
+      # Set DATABASE_URL in the Render dashboard to your Neon connection string:
+      # postgresql+psycopg2://neondb_owner:<password>@<host>.neon.tech/neondb?sslmode=require
+      - key: DATABASE_URL
+        sync: false
+      - key: TEST_AUTH_MODE
+        value: "false"
       - key: UPLOAD_FOLDER
         value: /opt/render/project/data/uploads
       - key: DEFAULT_ADMIN_EMAIL
