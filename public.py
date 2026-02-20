@@ -8,6 +8,7 @@ from flask import Blueprint, abort, render_template, request, flash, redirect, s
 from werkzeug.utils import secure_filename
 import config
 import database
+from extensions import limiter
 
 public = Blueprint('public', __name__)
 
@@ -55,6 +56,7 @@ def about():
     return render_template('public/about.html', settings=settings)
 
 @public.route('/contact', methods=['GET', 'POST'])
+@limiter.limit("5 per minute", methods=["POST"])
 def contact():
     """Contact page with form."""
     settings = database.get_website_settings()
@@ -79,6 +81,7 @@ def contact():
     return render_template('public/contact.html', settings=settings)
 
 @public.route('/submit-contact', methods=['POST'])
+@limiter.limit("5 per minute")
 def submit_contact():
     """Handle contact form submission from homepage."""
     name = request.form.get('name', '').strip()

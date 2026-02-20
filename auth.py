@@ -2,11 +2,15 @@
 Authentication module for Benjo Moments Photography System.
 Handles login, logout, and session protection.
 
-TEST_AUTH_MODE=true  → any non-empty email/password is accepted (dev/demo).
-TEST_AUTH_MODE=false → credentials validated against the users table.
+TEST_AUTH_MODE=true  → any non-empty email/password accepted (dev/demo).
+  If TEST_PIN env var is set, password must equal TEST_PIN.
+TEST_AUTH_MODE=false → credentials validated against the users table (production).
+
+Phase 7: rate limit applied on login; Phase 8: permanent session + TEST_PIN.
 """
 import logging
 import secrets
+from datetime import timedelta
 from functools import wraps
 
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
@@ -14,6 +18,7 @@ from werkzeug.security import check_password_hash
 
 import config
 import database
+from extensions import limiter
 
 logger = logging.getLogger(__name__)
 auth = Blueprint("auth", __name__)
@@ -32,8 +37,9 @@ def login_required(f):
 
 @auth.route("/login", methods=["GET", "POST"])
 @auth.route("/admin/login", methods=["GET", "POST"])
+@limiter.limit("10 per minute")
 def login():
-    """Handle user login."""
+    """Handle user login with rate limiting (Phase 7)."""
     if "user_id" in session:
         return redirect(url_for("admin.dashboard"))
 
@@ -46,14 +52,21 @@ def login():
             return render_template("auth/login.html")
 
         if config.TEST_AUTH_MODE:
-            # ---------------------------------------------------------------
-            # TEST AUTH MODE: accept any non-empty credentials
-            # ---------------------------------------------------------------
-            logger.debug("TEST_AUTH_MODE active — bypassing credential check for %s", email)
+            # -------------------------------------------------------------------
+            # TEST AUTH MODE: accept any non-empty credentials (Phase 8 hardening)
+            # If TEST_PIN is set, password must match it exactly.
+            # -------------------------------------------------------------------
+            if config.TEST_PIN and password != config.TEST_PIN:
+                logger.warning("TEST_AUTH_MODE: wrong TEST_PIN attempt for %s", email)
+                flash("Invalid credentials.", "error")
+                return render_template("auth/login.html")
+
+            logger.debug("TEST_AUTH_MODE active — bypass for %s", email)
             display_name = (
                 email.split("@")[0].replace(".", " ").replace("_", " ").title()
             )
             session.clear()
+            session.permanent = True
             session["user_id"] = 1
             session["user_name"] = display_name
             session["user_email"] = email
@@ -62,12 +75,13 @@ def login():
             flash(f"Welcome, {display_name}! (Test mode — any credentials accepted)", "success")
             return redirect(url_for("admin.dashboard"))
         else:
-            # ---------------------------------------------------------------
-            # PRODUCTION MODE: validate against DB
-            # ---------------------------------------------------------------
+            # -------------------------------------------------------------------
+            # PRODUCTION MODE: validate against DB with bcrypt
+            # -------------------------------------------------------------------
             user = database.get_user_by_email(email)
             if user and check_password_hash(user["password_hash"], password):
                 session.clear()
+                session.permanent = True
                 session["user_id"] = user["id"]
                 session["user_name"] = user["name"]
                 session["user_email"] = user["email"]

@@ -11,6 +11,7 @@ from werkzeug.utils import secure_filename
 from auth import login_required
 import database
 import config
+from extensions import limiter
 
 admin = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -330,6 +331,7 @@ def gallery_manager():
 
 @admin.route('/gallery/upload', methods=['POST'])
 @login_required
+@limiter.limit("10 per minute")
 def upload_image():
     """Upload new image to gallery."""
     if 'image' not in request.files:
@@ -428,6 +430,7 @@ def update_settings():
 
 @admin.route('/settings/hero-image/upload', methods=['POST'])
 @login_required
+@limiter.limit("10 per minute")
 def upload_hero_image():
     """Upload a new hero slider image."""
     if 'hero_image' not in request.files:

@@ -3,11 +3,13 @@ Benjo Moments Photography System
 Main Flask Application Entry Point
 
 Run with: python app.py
+Deploys via: gunicorn wsgi:app  (see render.yaml)
 """
 import logging
 import os
 import hmac
 import secrets
+from datetime import timedelta
 
 # Load .env file for local development (python-dotenv)
 try:
@@ -16,46 +18,54 @@ try:
 except ImportError:
     pass
 
-from flask import Flask, abort, request, session
+from flask import Flask, abort, jsonify, request, session
+from werkzeug.middleware.proxy_fix import ProxyFix
+
 import config
+from extensions import init_limiter, limiter
 
 logger = logging.getLogger(__name__)
-
-
-def run_migrations():
-    """Run Alembic migrations (upgrade head) at startup."""
-    try:
-        from alembic.config import Config
-        from alembic import command
-        alembic_cfg = Config(os.path.join(os.path.dirname(__file__), "alembic.ini"))
-        alembic_cfg.set_main_option("script_location", os.path.join(os.path.dirname(__file__), "migrations"))
-        alembic_cfg.set_main_option("sqlalchemy.url", config.DATABASE_URL)
-        command.upgrade(alembic_cfg, "head")
-        logger.info("Alembic migrations applied successfully.")
-    except Exception as exc:
-        logger.error("Alembic migration failed: %s", exc)
-        raise
 
 
 def create_app():
     """Create and configure the Flask application."""
     app = Flask(__name__)
 
-    # Configuration
+    # -----------------------------------------------------------------------
+    # ProxyFix: correct request.remote_addr behind Render's reverse proxy.
+    # Must be applied BEFORE the limiter reads the IP.  (Phase 7 / Phase 9)
+    # -----------------------------------------------------------------------
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+    # -----------------------------------------------------------------------
+    # Flask configuration
+    # -----------------------------------------------------------------------
     app.config["SECRET_KEY"] = config.SECRET_KEY
     app.config["MAX_CONTENT_LENGTH"] = config.MAX_CONTENT_LENGTH
     app.config["UPLOAD_FOLDER"] = config.UPLOAD_FOLDER
     app.config["SESSION_COOKIE_HTTPONLY"] = config.SESSION_COOKIE_HTTPONLY
     app.config["SESSION_COOKIE_SAMESITE"] = config.SESSION_COOKIE_SAMESITE
     app.config["SESSION_COOKIE_SECURE"] = config.SESSION_COOKIE_SECURE
+    # Permanent session lifetime (Phase 8) — default 8 hours
+    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=config.SESSION_LIFETIME_HOURS)
 
-    # Ensure upload directory exists
+    # -----------------------------------------------------------------------
+    # Rate limiter init (Phase 7)
+    # -----------------------------------------------------------------------
+    init_limiter(app)
+
+    # -----------------------------------------------------------------------
+    # Upload directory
+    # -----------------------------------------------------------------------
     os.makedirs(config.UPLOAD_FOLDER, exist_ok=True)
 
-    # Run Alembic migrations before serving any requests
-    run_migrations()
+    # NOTE (Phase 9): Alembic migrations are NO LONGER run at startup.
+    # They run via Render's releaseCommand: "alembic upgrade head".
+    # For local development, run: alembic upgrade head before starting the app.
 
-    # Seed defaults
+    # -----------------------------------------------------------------------
+    # Seed defaults (idempotent — safe to run every startup)
+    # -----------------------------------------------------------------------
     import database
     with app.app_context():
         database.init_default_settings()
@@ -63,7 +73,9 @@ def create_app():
         if not config.TEST_AUTH_MODE:
             database.create_default_admin()
 
-    # CSRF token helper for Jinja templates
+    # -----------------------------------------------------------------------
+    # CSRF token for Jinja templates
+    # -----------------------------------------------------------------------
     def generate_csrf_token():
         token = session.get("_csrf_token")
         if not token:
@@ -73,6 +85,9 @@ def create_app():
 
     app.jinja_env.globals["csrf_token"] = generate_csrf_token
 
+    # -----------------------------------------------------------------------
+    # CSRF protection middleware
+    # -----------------------------------------------------------------------
     @app.before_request
     def protect_against_csrf():
         if request.method in ("POST", "PUT", "PATCH", "DELETE"):
@@ -81,6 +96,9 @@ def create_app():
             if not session_token or not token or not hmac.compare_digest(session_token, token):
                 abort(400, description="Invalid CSRF token. Refresh the page and try again.")
 
+    # -----------------------------------------------------------------------
+    # Security response headers
+    # -----------------------------------------------------------------------
     @app.after_request
     def set_security_headers(response):
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
@@ -88,7 +106,22 @@ def create_app():
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
         return response
 
-    # Register blueprints
+    # -----------------------------------------------------------------------
+    # Rate limit error handler — friendly 429 response (Phase 7)
+    # -----------------------------------------------------------------------
+    @app.errorhandler(429)
+    def ratelimit_handler(e):
+        from flask import flash, redirect, request, url_for
+        # For non-JSON requests try to flash a message and redirect back
+        if "text/html" in request.accept_mimetypes.accept_html():
+            flash("Too many requests. Please slow down and try again in a minute.", "error")
+            referrer = request.referrer or url_for("public.index")
+            return redirect(referrer), 303
+        return jsonify(error="Too many requests", retry_after=str(e.description)), 429
+
+    # -----------------------------------------------------------------------
+    # Blueprint registration
+    # -----------------------------------------------------------------------
     from auth import auth
     from admin import admin
     from public import public
@@ -97,10 +130,11 @@ def create_app():
     app.register_blueprint(public)
 
     logger.info(
-        "Benjo Moments started | env=%s | TEST_AUTH_MODE=%s | DB=%s",
+        "Benjo Moments started | env=%s | TEST_AUTH_MODE=%s | DB=%s | limiter_storage=%s",
         config.FLASK_ENV,
         config.TEST_AUTH_MODE,
         "sqlite" if "sqlite" in (config.DATABASE_URL or "") else "postgres",
+        config.RATELIMIT_STORAGE_URI,
     )
     return app
 
