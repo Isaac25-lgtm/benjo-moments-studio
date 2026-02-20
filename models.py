@@ -342,3 +342,15 @@ class AuditLog(Base):
     entity_id = Column(Integer, nullable=True)
     details_json = Column(Text, nullable=True)         # JSON string with extra context
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    def as_dict(self):
+        return {
+            "id": self.id,
+            "user_email": self.user_email,
+            "action": self.action,
+            "entity_type": self.entity_type,
+            "entity_id": self.entity_id,
+            "details_json": self.details_json,
+            "created_at": self.created_at,
+        }
+

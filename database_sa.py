@@ -1,23 +1,26 @@
 """
 SQLAlchemy-based CRUD operations for Benjo Moments Photography System.
 
-This module is a drop-in replacement for database.py.
-All functions have the same signatures as the sqlite3 originals so that
-admin.py, public.py, and auth.py require zero changes.
+This module is a drop-in replacement for the old sqlite3 database.py.
+All public function signatures are identical to the sqlite3 originals so
+that admin.py, public.py, and auth.py require zero changes.
 
-Results are returned as plain dicts (or lists of dicts) that support
-both dict-key access  row['field']  and attribute access  row.field
-via the _Row namedtuple wrapper, keeping full backwards compatibility
-with templates that use either style.
+Phase 6 additions:
+  - _actor_email(), _client_ip(), _user_agent() — safe request-context helpers
+  - _validate_amount(), _validate_date() — server-side input validators
+  - log_audit() calls on every mutating function
+  - restore_* functions for soft-deleted entities
 """
 from __future__ import annotations
 
+import json
 import logging
 import secrets
+from datetime import date as date_type
 from datetime import datetime
-from typing import Any, Optional
+from typing import Optional
 
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash
 
@@ -54,6 +57,74 @@ def _to_row(obj) -> Optional[_Row]:
 
 def _to_rows(objs) -> list[_Row]:
     return [_to_row(o) for o in objs]
+
+
+# ---------------------------------------------------------------------------
+# Request-context helpers  (Phase 6)
+# ---------------------------------------------------------------------------
+def _actor_email() -> str:
+    """Return the logged-in user's email, or 'system' outside a request."""
+    try:
+        from flask import has_request_context, session
+        if has_request_context():
+            return session.get("user_email", "unknown")
+    except Exception:
+        pass
+    return "system"
+
+
+def _client_ip() -> str:
+    """Return the client IP address, or empty string outside a request."""
+    try:
+        from flask import has_request_context, request
+        if has_request_context():
+            return request.remote_addr or ""
+    except Exception:
+        pass
+    return ""
+
+
+def _user_agent() -> str:
+    """Return the User-Agent header, truncated to 200 chars."""
+    try:
+        from flask import has_request_context, request
+        if has_request_context():
+            ua = request.headers.get("User-Agent", "")
+            return ua[:200]
+    except Exception:
+        pass
+    return ""
+
+
+def _audit_details(**kwargs) -> str:
+    """Serialize extra audit context to a JSON string."""
+    payload = {k: v for k, v in kwargs.items() if v is not None and v != ""}
+    payload.update({"ip": _client_ip(), "ua": _user_agent()})
+    return json.dumps(payload, default=str)
+
+
+# ---------------------------------------------------------------------------
+# Input validators  (Phase 6/7)
+# ---------------------------------------------------------------------------
+def _validate_amount(value, label: str = "Amount") -> float:
+    """Parse and validate a monetary amount. Raises ValueError on bad input."""
+    try:
+        amount = float(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"{label} must be a number.")
+    if amount < 0:
+        raise ValueError(f"{label} must be zero or greater.")
+    return amount
+
+
+def _validate_date(value, label: str = "Date"):
+    """Parse and validate a date. Accepts date objects or 'YYYY-MM-DD' strings."""
+    if isinstance(value, (date_type, datetime)):
+        return value if isinstance(value, date_type) else value.date()
+    try:
+        return datetime.strptime(str(value).strip(), "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        raise ValueError(f"{label} must be a valid date in YYYY-MM-DD format.")
 
 
 # ---------------------------------------------------------------------------
@@ -112,32 +183,23 @@ def create_default_pricing_packages():
                 PricingPackage(
                     name="Basic",
                     description="Perfect for portraits & small events",
-                    price=300000,
-                    price_label="/session",
-                    icon="fa-camera",
+                    price=300000, price_label="/session", icon="fa-camera",
                     features="2 Hours Coverage|50+ Edited Photos|Digital Download|1 Location|Basic Retouching",
-                    is_featured=False,
-                    display_order=1,
+                    is_featured=False, display_order=1,
                 ),
                 PricingPackage(
                     name="Premium",
                     description="Best for weddings & kukyala",
-                    price=1500000,
-                    price_label="/event",
-                    icon="fa-heart",
+                    price=1500000, price_label="/event", icon="fa-heart",
                     features="Full Day Coverage|300+ Edited Photos|Photo Album Included|Multiple Locations|2 Photographers|Premium Retouching",
-                    is_featured=True,
-                    display_order=2,
+                    is_featured=True, display_order=2,
                 ),
                 PricingPackage(
                     name="Full Package",
                     description="Photo + Video combo deal",
-                    price=2500000,
-                    price_label="/event",
-                    icon="fa-video",
+                    price=2500000, price_label="/event", icon="fa-video",
                     features="Photography + Videography|500+ Photos & Full Video|Highlight Reel|Premium Album + USB|Same Day Edit Preview|Drone Coverage",
-                    is_featured=False,
-                    display_order=3,
+                    is_featured=False, display_order=3,
                 ),
             ]
             session.add_all(defaults)
@@ -154,7 +216,7 @@ def get_user_by_email(email: str) -> Optional[_Row]:
         if user is None:
             return None
         row = _Row(user.as_dict())
-        row["password_hash"] = user.password_hash  # needed for auth check
+        row["password_hash"] = user.password_hash
         return row
 
 
@@ -180,18 +242,42 @@ def get_all_income() -> list[_Row]:
 
 
 def add_income(date, description, category, amount) -> None:
+    amount = _validate_amount(amount, "Income amount")
+    date = _validate_date(date, "Income date")
+    if not str(description).strip():
+        raise ValueError("Description is required.")
+    if not str(category).strip():
+        raise ValueError("Category is required.")
+    actor = _actor_email()
     with SessionLocal() as session:
-        session.add(Income(date=date, description=description, category=category, amount=amount))
+        row = Income(date=date, description=description, category=category, amount=amount)
+        session.add(row)
         session.commit()
+        log_audit(actor, "create", "income", row.id,
+                  _audit_details(description=description, category=category, amount=amount))
 
 
 def delete_income(income_id: int) -> None:
+    actor = _actor_email()
     with SessionLocal() as session:
         row = session.get(Income, income_id)
         if row:
             row.is_deleted = True
             row.deleted_at = datetime.utcnow()
             session.commit()
+            log_audit(actor, "delete", "income", income_id,
+                      _audit_details(deleted_by=actor, description=row.description))
+
+
+def restore_income(income_id: int) -> None:
+    actor = _actor_email()
+    with SessionLocal() as session:
+        row = session.get(Income, income_id)
+        if row and row.is_deleted:
+            row.is_deleted = False
+            row.deleted_at = None
+            session.commit()
+            log_audit(actor, "restore", "income", income_id, _audit_details())
 
 
 def get_total_income() -> float:
@@ -214,18 +300,42 @@ def get_all_expenses() -> list[_Row]:
 
 
 def add_expense(date, description, category, amount) -> None:
+    amount = _validate_amount(amount, "Expense amount")
+    date = _validate_date(date, "Expense date")
+    if not str(description).strip():
+        raise ValueError("Description is required.")
+    if not str(category).strip():
+        raise ValueError("Category is required.")
+    actor = _actor_email()
     with SessionLocal() as session:
-        session.add(Expense(date=date, description=description, category=category, amount=amount))
+        row = Expense(date=date, description=description, category=category, amount=amount)
+        session.add(row)
         session.commit()
+        log_audit(actor, "create", "expense", row.id,
+                  _audit_details(description=description, category=category, amount=amount))
 
 
 def delete_expense(expense_id: int) -> None:
+    actor = _actor_email()
     with SessionLocal() as session:
         row = session.get(Expense, expense_id)
         if row:
             row.is_deleted = True
             row.deleted_at = datetime.utcnow()
             session.commit()
+            log_audit(actor, "delete", "expense", expense_id,
+                      _audit_details(deleted_by=actor, description=row.description))
+
+
+def restore_expense(expense_id: int) -> None:
+    actor = _actor_email()
+    with SessionLocal() as session:
+        row = session.get(Expense, expense_id)
+        if row and row.is_deleted:
+            row.is_deleted = False
+            row.deleted_at = None
+            session.commit()
+            log_audit(actor, "restore", "expense", expense_id, _audit_details())
 
 
 def get_total_expenses() -> float:
@@ -256,24 +366,41 @@ def get_customer(customer_id: int) -> Optional[_Row]:
 
 
 def add_customer(name, service, amount_paid, total_amount, contact) -> None:
+    if not str(name).strip():
+        raise ValueError("Customer name is required.")
+    if not str(service).strip():
+        raise ValueError("Service is required.")
+    total_amount = _validate_amount(total_amount, "Total amount")
+    amount_paid = _validate_amount(amount_paid, "Amount paid")
+    if amount_paid > total_amount:
+        raise ValueError("Amount paid cannot exceed total amount.")
+    actor = _actor_email()
     with SessionLocal() as session:
-        session.add(Customer(
-            name=name, service=service, amount_paid=amount_paid,
-            total_amount=total_amount, contact=contact,
-        ))
+        row = Customer(name=name, service=service, amount_paid=amount_paid,
+                       total_amount=total_amount, contact=contact)
+        session.add(row)
         session.commit()
+        log_audit(actor, "create", "customer", row.id,
+                  _audit_details(name=name, service=service, total_amount=total_amount))
 
 
 def update_customer_payment(customer_id: int, amount_paid) -> None:
+    amount_paid = _validate_amount(amount_paid, "Amount paid")
+    actor = _actor_email()
     with SessionLocal() as session:
         row = session.get(Customer, customer_id)
         if row:
+            if amount_paid > float(row.total_amount):
+                raise ValueError("Amount paid cannot exceed total amount.")
             row.amount_paid = amount_paid
             session.commit()
+            log_audit(actor, "update", "customer", customer_id,
+                      _audit_details(amount_paid=amount_paid))
 
 
 def delete_customer(customer_id: int) -> None:
     """Soft-delete customer and their invoices."""
+    actor = _actor_email()
     with SessionLocal() as session:
         customer = session.get(Customer, customer_id)
         if customer:
@@ -283,15 +410,28 @@ def delete_customer(customer_id: int) -> None:
             customer.is_deleted = True
             customer.deleted_at = datetime.utcnow()
             session.commit()
+            log_audit(actor, "delete", "customer", customer_id,
+                      _audit_details(deleted_by=actor, name=customer.name))
+
+
+def restore_customer(customer_id: int) -> None:
+    """Restore a soft-deleted customer (does NOT auto-restore invoices)."""
+    actor = _actor_email()
+    with SessionLocal() as session:
+        row = session.get(Customer, customer_id)
+        if row and row.is_deleted:
+            row.is_deleted = False
+            row.deleted_at = None
+            session.commit()
+            log_audit(actor, "restore", "customer", customer_id,
+                      _audit_details(name=row.name))
 
 
 def get_total_pending_balance() -> float:
     with SessionLocal() as session:
         total = session.scalar(
             select(
-                func.coalesce(
-                    func.sum(Customer.total_amount - Customer.amount_paid), 0
-                )
+                func.coalesce(func.sum(Customer.total_amount - Customer.amount_paid), 0)
             ).where(Customer.is_deleted == False)  # noqa: E712
         )
         return float(total)
@@ -308,7 +448,6 @@ def get_all_invoices() -> list[_Row]:
             .join(Customer, Invoice.customer_id == Customer.id)
             .order_by(Invoice.date.desc())
         ).all()
-        # Eagerly build rows including customer_name
         result = []
         for inv in rows:
             d = inv.as_dict()
@@ -320,9 +459,7 @@ def get_all_invoices() -> list[_Row]:
 def _gen_invoice_number(session) -> str:
     for _ in range(20):
         candidate = f"INV-{datetime.now().strftime('%Y%m%d')}-{secrets.token_hex(2).upper()}"
-        exists = session.scalar(
-            select(Invoice).where(Invoice.invoice_number == candidate)
-        )
+        exists = session.scalar(select(Invoice).where(Invoice.invoice_number == candidate))
         if not exists:
             return candidate
     raise RuntimeError("Unable to generate unique invoice number.")
@@ -334,73 +471,104 @@ def generate_invoice_number() -> str:
 
 
 def add_invoice(invoice_number, customer_id, date, amount) -> str:
+    amount = _validate_amount(amount, "Invoice amount")
+    date = _validate_date(date, "Invoice date")
+    actor = _actor_email()
     with SessionLocal() as session:
-        for attempt in range(20):
+        for _ in range(20):
             num = (invoice_number or "").strip() or _gen_invoice_number(session)
             try:
                 inv = Invoice(invoice_number=num, customer_id=customer_id, date=date, amount=amount)
                 session.add(inv)
                 session.commit()
+                log_audit(actor, "create", "invoice", inv.id,
+                          _audit_details(invoice_number=num, amount=amount))
                 return num
             except IntegrityError:
                 session.rollback()
                 if invoice_number:
                     raise ValueError("Invoice number already exists. Use a different number.")
-        raise RuntimeError("Unable to create invoice due to repeated invoice number conflicts.")
+    raise RuntimeError("Unable to create invoice due to repeated invoice number conflicts.")
 
 
 def update_invoice_status(invoice_id: int, status: str) -> None:
+    actor = _actor_email()
     with SessionLocal() as session:
         row = session.get(Invoice, invoice_id)
         if row:
+            old_status = row.status
             row.status = status
             session.commit()
+            log_audit(actor, "update", "invoice", invoice_id,
+                      _audit_details(old_status=old_status, new_status=status))
 
 
 def delete_invoice(invoice_id: int) -> None:
+    actor = _actor_email()
     with SessionLocal() as session:
         row = session.get(Invoice, invoice_id)
         if row:
             row.is_deleted = True
             row.deleted_at = datetime.utcnow()
             session.commit()
+            log_audit(actor, "delete", "invoice", invoice_id,
+                      _audit_details(deleted_by=actor, invoice_number=row.invoice_number))
+
+
+def restore_invoice(invoice_id: int) -> None:
+    actor = _actor_email()
+    with SessionLocal() as session:
+        row = session.get(Invoice, invoice_id)
+        if row and row.is_deleted:
+            row.is_deleted = False
+            row.deleted_at = None
+            session.commit()
+            log_audit(actor, "restore", "invoice", invoice_id,
+                      _audit_details(invoice_number=row.invoice_number))
 
 
 # ---------------------------------------------------------------------------
-# Assets
+# Assets  (hard delete, but audited)
 # ---------------------------------------------------------------------------
 def get_all_assets() -> list[_Row]:
     with SessionLocal() as session:
-        rows = session.scalars(
-            select(Asset).order_by(Asset.created_at.desc())
-        ).all()
+        rows = session.scalars(select(Asset).order_by(Asset.created_at.desc())).all()
         return _to_rows(rows)
 
 
 def add_asset(name, category, value, supplier) -> None:
+    if not str(name).strip():
+        raise ValueError("Asset name is required.")
+    value = _validate_amount(value, "Asset value")
+    actor = _actor_email()
     with SessionLocal() as session:
-        session.add(Asset(name=name, category=category, value=value, supplier=supplier))
+        row = Asset(name=name, category=category, value=value, supplier=supplier)
+        session.add(row)
         session.commit()
+        log_audit(actor, "create", "asset", row.id,
+                  _audit_details(name=name, category=category, value=value))
 
 
 def delete_asset(asset_id: int) -> None:
+    actor = _actor_email()
     with SessionLocal() as session:
         row = session.get(Asset, asset_id)
         if row:
+            name = row.name
             session.delete(row)
             session.commit()
+            log_audit(actor, "delete", "asset", asset_id,
+                      _audit_details(deleted_by=actor, name=name))
 
 
 def get_total_asset_value() -> float:
     with SessionLocal() as session:
-        total = session.scalar(
-            select(func.coalesce(func.sum(Asset.value), 0))
-        )
+        total = session.scalar(select(func.coalesce(func.sum(Asset.value), 0)))
         return float(total)
 
 
 # ---------------------------------------------------------------------------
-# Gallery
+# Gallery  (soft delete with restore)
 # ---------------------------------------------------------------------------
 def get_all_gallery_images() -> list[_Row]:
     with SessionLocal() as session:
@@ -425,21 +593,30 @@ def get_published_gallery_images(album=None) -> list[_Row]:
 
 
 def add_gallery_image(filename, album, caption) -> None:
+    actor = _actor_email()
     with SessionLocal() as session:
-        session.add(GalleryImage(filename=filename, album=album, caption=caption, published=True))
+        row = GalleryImage(filename=filename, album=album, caption=caption, published=True)
+        session.add(row)
         session.commit()
+        log_audit(actor, "create", "gallery", row.id,
+                  _audit_details(filename=filename, album=album))
 
 
 def toggle_gallery_publish(image_id: int) -> None:
+    actor = _actor_email()
     with SessionLocal() as session:
         row = session.get(GalleryImage, image_id)
         if row:
             row.published = not row.published
+            new_state = row.published
             session.commit()
+            log_audit(actor, "toggle_publish", "gallery", image_id,
+                      _audit_details(published=new_state))
 
 
 def delete_gallery_image(image_id: int) -> Optional[_Row]:
     """Soft-delete the gallery DB record; return filename/album for file deletion."""
+    actor = _actor_email()
     with SessionLocal() as session:
         row = session.get(GalleryImage, image_id)
         if row:
@@ -447,8 +624,22 @@ def delete_gallery_image(image_id: int) -> Optional[_Row]:
             row.is_deleted = True
             row.deleted_at = datetime.utcnow()
             session.commit()
+            log_audit(actor, "delete", "gallery", image_id,
+                      _audit_details(deleted_by=actor, filename=row.filename, album=row.album))
             return result
         return None
+
+
+def restore_gallery_image(image_id: int) -> None:
+    actor = _actor_email()
+    with SessionLocal() as session:
+        row = session.get(GalleryImage, image_id)
+        if row and row.is_deleted:
+            row.is_deleted = False
+            row.deleted_at = None
+            session.commit()
+            log_audit(actor, "restore", "gallery", image_id,
+                      _audit_details(filename=row.filename))
 
 
 # ---------------------------------------------------------------------------
@@ -462,6 +653,7 @@ def get_website_settings() -> Optional[_Row]:
 
 def update_website_settings(site_name, hero_text, hero_subtext, about_text,
                              contact_phone, contact_email, address) -> None:
+    actor = _actor_email()
     with SessionLocal() as session:
         row = session.scalar(select(WebsiteSettings).limit(1))
         if row:
@@ -473,13 +665,19 @@ def update_website_settings(site_name, hero_text, hero_subtext, about_text,
             row.contact_email = contact_email
             row.address = address
             row.updated_at = datetime.utcnow()
+            row_id = row.id
         else:
-            session.add(WebsiteSettings(
+            new_row = WebsiteSettings(
                 site_name=site_name, hero_text=hero_text, hero_subtext=hero_subtext,
                 about_text=about_text, contact_phone=contact_phone,
                 contact_email=contact_email, address=address,
-            ))
+            )
+            session.add(new_row)
+            session.flush()
+            row_id = new_row.id
         session.commit()
+        log_audit(actor, "update", "website_settings", row_id,
+                  _audit_details(site_name=site_name))
 
 
 # ---------------------------------------------------------------------------
@@ -506,7 +704,7 @@ def get_expenses_by_date_range(start_date, end_date) -> list[_Row]:
 
 
 def get_recent_transactions(limit: int = 10) -> list[_Row]:
-    """Return recent income + expense combined, sorted by date, limited."""
+    """Return recent income + expense combined, sorted by date."""
     with SessionLocal() as session:
         income_rows = session.scalars(
             select(Income).where(Income.is_deleted == False).order_by(Income.date.desc()).limit(limit)  # noqa: E712
@@ -517,20 +715,16 @@ def get_recent_transactions(limit: int = 10) -> list[_Row]:
 
     transactions = []
     for r in income_rows:
-        d = r.as_dict()
-        d["type"] = "income"
-        transactions.append(_Row(d))
+        d = r.as_dict(); d["type"] = "income"; transactions.append(_Row(d))
     for r in expense_rows:
-        d = r.as_dict()
-        d["type"] = "expense"
-        transactions.append(_Row(d))
+        d = r.as_dict(); d["type"] = "expense"; transactions.append(_Row(d))
 
     transactions.sort(key=lambda x: x["date"] or datetime.min.date(), reverse=True)
     return transactions[:limit]
 
 
 # ---------------------------------------------------------------------------
-# Contact Messages
+# Contact Messages  (hard delete, but audited)
 # ---------------------------------------------------------------------------
 def get_all_messages() -> list[_Row]:
     with SessionLocal() as session:
@@ -548,31 +742,39 @@ def get_unread_messages_count() -> int:
 
 
 def add_contact_message(name, email, phone, service, message) -> None:
+    actor = _actor_email()
     with SessionLocal() as session:
-        session.add(ContactMessage(
-            name=name, email=email, phone=phone, service=service, message=message
-        ))
+        row = ContactMessage(name=name, email=email, phone=phone, service=service, message=message)
+        session.add(row)
         session.commit()
+        log_audit(actor, "create", "contact_message", row.id,
+                  _audit_details(name=name, email=email, service=service))
 
 
 def mark_message_read(message_id: int) -> None:
+    actor = _actor_email()
     with SessionLocal() as session:
         row = session.get(ContactMessage, message_id)
         if row:
             row.is_read = True
             session.commit()
+            log_audit(actor, "update", "contact_message", message_id,
+                      _audit_details(action="mark_read"))
 
 
 def delete_message(message_id: int) -> None:
+    actor = _actor_email()
     with SessionLocal() as session:
         row = session.get(ContactMessage, message_id)
         if row:
             session.delete(row)
             session.commit()
+            log_audit(actor, "delete", "contact_message", message_id,
+                      _audit_details(deleted_by=actor, email=row.email))
 
 
 # ---------------------------------------------------------------------------
-# Pricing Packages
+# Pricing Packages  (hard delete, but audited)
 # ---------------------------------------------------------------------------
 def get_all_pricing_packages() -> list[_Row]:
     with SessionLocal() as session:
@@ -600,49 +802,59 @@ def get_pricing_package(package_id: int) -> Optional[_Row]:
 
 def add_pricing_package(name, description, price, price_label, icon, features,
                          is_featured, display_order) -> None:
+    actor = _actor_email()
     with SessionLocal() as session:
-        session.add(PricingPackage(
+        row = PricingPackage(
             name=name, description=description, price=price, price_label=price_label,
             icon=icon, features=features, is_featured=bool(is_featured),
             display_order=display_order,
-        ))
+        )
+        session.add(row)
         session.commit()
+        log_audit(actor, "create", "pricing_package", row.id,
+                  _audit_details(name=name, price=price))
 
 
 def update_pricing_package(package_id, name, description, price, price_label, icon,
                             features, is_featured, display_order) -> None:
+    actor = _actor_email()
     with SessionLocal() as session:
         row = session.get(PricingPackage, package_id)
         if row:
-            row.name = name
-            row.description = description
-            row.price = price
-            row.price_label = price_label
-            row.icon = icon
-            row.features = features
-            row.is_featured = bool(is_featured)
-            row.display_order = display_order
+            row.name = name; row.description = description; row.price = price
+            row.price_label = price_label; row.icon = icon; row.features = features
+            row.is_featured = bool(is_featured); row.display_order = display_order
             session.commit()
+            log_audit(actor, "update", "pricing_package", package_id,
+                      _audit_details(name=name, price=price))
 
 
 def delete_pricing_package(package_id: int) -> None:
+    actor = _actor_email()
     with SessionLocal() as session:
         row = session.get(PricingPackage, package_id)
         if row:
+            name = row.name
             session.delete(row)
             session.commit()
+            log_audit(actor, "delete", "pricing_package", package_id,
+                      _audit_details(deleted_by=actor, name=name))
 
 
 def toggle_pricing_package(package_id: int) -> None:
+    actor = _actor_email()
     with SessionLocal() as session:
         row = session.get(PricingPackage, package_id)
         if row:
             row.is_active = not row.is_active
+            new_state = row.is_active
             session.commit()
+            log_audit(actor, "toggle_active", "pricing_package", package_id,
+                      _audit_details(is_active=new_state))
 
 
 # ---------------------------------------------------------------------------
-# Hero Images
+# Hero Images  (hard delete, but audited)
 # ---------------------------------------------------------------------------
 def get_all_hero_images() -> list[_Row]:
     with SessionLocal() as session:
@@ -653,18 +865,25 @@ def get_all_hero_images() -> list[_Row]:
 
 
 def add_hero_image(filename, display_order) -> None:
+    actor = _actor_email()
     with SessionLocal() as session:
-        session.add(HeroImage(filename=filename, display_order=display_order))
+        row = HeroImage(filename=filename, display_order=display_order)
+        session.add(row)
         session.commit()
+        log_audit(actor, "create", "hero_image", row.id,
+                  _audit_details(filename=filename))
 
 
 def delete_hero_image(image_id: int) -> Optional[_Row]:
+    actor = _actor_email()
     with SessionLocal() as session:
         row = session.get(HeroImage, image_id)
         if row:
             result = _Row({"filename": row.filename})
             session.delete(row)
             session.commit()
+            log_audit(actor, "delete", "hero_image", image_id,
+                      _audit_details(deleted_by=actor, filename=result["filename"]))
             return result
         return None
 
@@ -674,7 +893,7 @@ def delete_hero_image(image_id: int) -> Optional[_Row]:
 # ---------------------------------------------------------------------------
 def log_audit(user_email: str, action: str, entity_type: str = None,
                entity_id: int = None, details: str = None) -> None:
-    """Write an audit log entry. Swallows errors to never break the main flow."""
+    """Write an audit log entry. Swallows ALL errors to never break the main flow."""
     try:
         with SessionLocal() as session:
             session.add(AuditLog(

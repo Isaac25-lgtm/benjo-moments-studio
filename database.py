@@ -66,4 +66,10 @@ from database_sa import (  # explicit re-export for IDEs
     delete_hero_image,
     log_audit,
     get_recent_audit_logs,
+    # Phase 6: restore functions for soft-deleted entities
+    restore_income,
+    restore_expense,
+    restore_customer,
+    restore_invoice,
+    restore_gallery_image,
 )
