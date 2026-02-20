@@ -13,7 +13,7 @@
 
 **A complete, modern web application for managing a photography business — from stunning portfolio showcase to comprehensive financial tracking.**
 
-[Live Demo](#) • [Features](#-features) • [Quick Start](#-quick-start) • [Deployment](#-deployment) • [Admin Access](#-admin-access)
+[Live Demo](#) • [Features](#-features) • [Quick Start](#-quick-start) • [Deployment](#-deployment)
 
 </div>
 
@@ -73,19 +73,6 @@ The server will start at: **http://127.0.0.1:5000**
 
 ---
 
-## 🔑 Admin Access
-
-Access the Manager's Portal at: `/admin/login`
-
-**Default Credentials:**
-| Field | Value |
-|-------|-------|
-| Email | `admin@benjomoments.com` |
-| Password | `admin123` |
-
-> ⚠️ **Important:** Change these credentials immediately in production by updating `config.py`
-
----
 
 ## 🌍 Deployment
 
@@ -181,12 +168,9 @@ benjo-moments-studio/
 Edit `config.py` to customize:
 
 ```python
-# Admin Credentials
-DEFAULT_ADMIN_EMAIL = 'your-email@example.com'
-DEFAULT_ADMIN_PASSWORD = 'secure-password'
-
-# Security
-SECRET_KEY = 'your-secret-key-here'
+# Security — always set via environment variables, never hardcode
+SECRET_KEY = os.environ.get('SECRET_KEY')      # required in production
+DATABASE_URL = os.environ.get('DATABASE_URL')  # Neon PostgreSQL in production
 
 # File Uploads
 MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max
