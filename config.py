@@ -87,6 +87,24 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_SECURE = IS_PRODUCTION
 CSRF_TOKEN_FIELD = "csrf_token"
+SESSION_LIFETIME_HOURS = int(os.environ.get("SESSION_LIFETIME_HOURS", "8"))
+
+# ---------------------------------------------------------------------------
+# Auth hardening (Phase 8)
+# ---------------------------------------------------------------------------
+# TEST_PIN: if set, the password must match this value when TEST_AUTH_MODE=true.
+# Leave unset to accept any non-empty password (original behaviour).
+TEST_PIN = os.environ.get("TEST_PIN")  # None by default
+
+# ---------------------------------------------------------------------------
+# Rate limiting (Phase 7)
+# ---------------------------------------------------------------------------
+# Priority: RATELIMIT_STORAGE_URI > REDIS_URL > memory://
+RATELIMIT_STORAGE_URI = (
+    os.environ.get("RATELIMIT_STORAGE_URI")
+    or os.environ.get("REDIS_URL")
+    or "memory://"
+)
 
 # ---------------------------------------------------------------------------
 # Album folders

@@ -6,7 +6,11 @@ services:
     name: benjo-moments-studio
     runtime: python
     buildCommand: pip install -r requirements.txt
-    # alembic upgrade runs inside app.py startup — no separate pre-deploy step needed
+    # -----------------------------------------------------------------------
+    # Release Command (Phase 9): runs BEFORE the new version starts serving.
+    # Applies any pending Alembic migrations safely on each deploy.
+    # -----------------------------------------------------------------------
+    releaseCommand: alembic upgrade head
     startCommand: gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --keep-alive 5 --log-level info
     envVars:
       - key: PYTHON_VERSION
@@ -21,12 +25,18 @@ services:
         sync: false
       - key: TEST_AUTH_MODE
         value: "false"
+      # Optional: set TEST_PIN to restrict test-mode logins
+      # - key: TEST_PIN
+      #   sync: false
       - key: UPLOAD_FOLDER
         value: /opt/render/project/data/uploads
       - key: DEFAULT_ADMIN_EMAIL
         value: admin@benjomoments.com
       - key: DEFAULT_ADMIN_PASSWORD
         sync: false
+      # Optional: REDIS_URL or RATELIMIT_STORAGE_URI for persistent rate limiting
+      # - key: REDIS_URL
+      #   sync: false
     disk:
       name: benjo-moments-data
       mountPath: /opt/render/project/data
