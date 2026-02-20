@@ -76,7 +76,7 @@ def login():
             return redirect(url_for("admin.dashboard"))
         else:
             # -------------------------------------------------------------------
-            # PRODUCTION MODE: validate against DB with bcrypt
+            # PRODUCTION MODE: validate against DB with Werkzeug password hash
             # -------------------------------------------------------------------
             user = database.get_user_by_email(email)
             if user and check_password_hash(user["password_hash"], password):

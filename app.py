@@ -22,7 +22,7 @@ from flask import Flask, abort, jsonify, request, session
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 import config
-from extensions import init_limiter, limiter
+from extensions import init_limiter
 
 logger = logging.getLogger(__name__)
 
@@ -112,8 +112,13 @@ def create_app():
     @app.errorhandler(429)
     def ratelimit_handler(e):
         from flask import flash, redirect, request, url_for
-        # For non-JSON requests try to flash a message and redirect back
-        if "text/html" in request.accept_mimetypes.accept_html():
+        # For HTML requests: flash a message and redirect back (no crash page).
+        # accept_html is a callable that returns True/False.
+        try:
+            wants_html = request.accept_mimetypes.accept_html()
+        except Exception:
+            wants_html = True  # safe default — show friendly redirect
+        if wants_html:
             flash("Too many requests. Please slow down and try again in a minute.", "error")
             referrer = request.referrer or url_for("public.index")
             return redirect(referrer), 303

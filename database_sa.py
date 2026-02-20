@@ -492,6 +492,10 @@ def add_invoice(invoice_number, customer_id, date, amount) -> str:
 
 
 def update_invoice_status(invoice_id: int, status: str) -> None:
+    _VALID_STATUSES = {"pending", "paid", "cancelled"}
+    status = str(status).strip().lower()
+    if status not in _VALID_STATUSES:
+        raise ValueError(f"Invalid invoice status '{status}'. Allowed: {', '.join(sorted(_VALID_STATUSES))}.")
     actor = _actor_email()
     with SessionLocal() as session:
         row = session.get(Invoice, invoice_id)
@@ -767,10 +771,12 @@ def delete_message(message_id: int) -> None:
     with SessionLocal() as session:
         row = session.get(ContactMessage, message_id)
         if row:
+            # Capture fields BEFORE deleting — ORM object becomes detached after commit
+            captured_email = row.email
             session.delete(row)
             session.commit()
             log_audit(actor, "delete", "contact_message", message_id,
-                      _audit_details(deleted_by=actor, email=row.email))
+                      _audit_details(deleted_by=actor, email=captured_email))
 
 
 # ---------------------------------------------------------------------------

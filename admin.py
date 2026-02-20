@@ -230,7 +230,7 @@ def add_invoice():
 @login_required
 def mark_invoice_paid(id):
     """Mark invoice as paid."""
-    database.update_invoice_status(id, 'Paid')
+    database.update_invoice_status(id, 'paid')  # lowercase canonical status
     flash('Invoice marked as paid.', 'success')
     return redirect(url_for('admin.invoices'))
 
@@ -380,17 +380,10 @@ def toggle_image(id):
 @admin.route('/gallery/delete/<int:id>', methods=['POST'])
 @login_required
 def delete_image(id):
-    """Delete image from gallery."""
-    image = database.delete_gallery_image(id)
-    if image:
-        # Delete file from filesystem
-        album_folder = config.ALBUM_FOLDERS.get(image['album'], 'other')
-        file_path = os.path.join(config.UPLOAD_FOLDER, album_folder, image['filename'])
-        if os.path.exists(file_path):
-            try:
-                os.remove(file_path)
-            except OSError:
-                flash('Image record deleted, but file could not be removed from disk.', 'warning')
+    """Soft-delete image from gallery (DB only — file kept for restore)."""
+    database.delete_gallery_image(id)
+    # File is intentionally NOT removed from disk so that restore_gallery_image()
+    # can bring the record back and the file is still accessible.
     flash('Image deleted.', 'info')
     return redirect(url_for('admin.gallery_manager'))
 
