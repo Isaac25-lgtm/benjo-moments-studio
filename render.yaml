@@ -31,7 +31,7 @@ services:
       - key: UPLOAD_FOLDER
         value: /opt/render/project/data/uploads
       - key: DEFAULT_ADMIN_EMAIL
-        value: admin@benjomoments.com
+        sync: false
       - key: DEFAULT_ADMIN_PASSWORD
         sync: false
       # Optional: REDIS_URL or RATELIMIT_STORAGE_URI for persistent rate limiting
