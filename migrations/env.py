@@ -1,8 +1,9 @@
 """
 Alembic migrations environment for Benjo Moments Photography System.
 
-Reads DATABASE_URL from the environment (same as app config) so that
-`alembic upgrade head` works both locally and on Render.
+Reads DATABASE_URL directly from the environment (does NOT import config.py)
+so that `alembic upgrade head` works both locally and on Render without
+triggering the production-only RuntimeError guard in config.py.
 """
 import os
 import sys
@@ -13,31 +14,55 @@ from sqlalchemy import engine_from_config, pool
 from alembic import context
 
 # ---------------------------------------------------------------------------
-# Make sure the app root is on sys.path so we can import config + models
+# Make sure the app root is on sys.path so we can import models
 # ---------------------------------------------------------------------------
 APP_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(APP_ROOT))
 
-# Load .env if present (local dev only)
+# Load .env if present (local dev only — no-op in production)
 try:
     from dotenv import load_dotenv
     load_dotenv(APP_ROOT / ".env")
 except ImportError:
     pass
 
-# Import app config and models
-import config as app_config  # noqa: E402
-from models import Base  # noqa: E402  — this registers all ORM models
+# ---------------------------------------------------------------------------
+# Resolve DATABASE_URL directly — do NOT import config.py.
+# config.py raises RuntimeError in production when DATABASE_URL is absent,
+# which would crash the pre-deploy step before the env var is available.
+# ---------------------------------------------------------------------------
+_db_url = os.environ.get("DATABASE_URL")
+
+if not _db_url:
+    # Local dev fallback: honour USE_SQLITE_FALLBACK / DATABASE_PATH
+    if os.environ.get("USE_SQLITE_FALLBACK", "false").lower() in ("1", "true", "yes"):
+        _db_url = "sqlite:///" + os.environ.get(
+            "DATABASE_PATH",
+            str(APP_ROOT / "database.db"),
+        )
+    else:
+        raise RuntimeError(
+            "DATABASE_URL is not set. "
+            "Set it in your Render dashboard (Neon Postgres URL) "
+            "or set USE_SQLITE_FALLBACK=true for local dev."
+        )
+
+# Normalise Render's legacy 'postgres://' scheme for SQLAlchemy 2.x
+if _db_url.startswith("postgres://"):
+    _db_url = _db_url.replace("postgres://", "postgresql://", 1)
+
+# Import models — this registers ORM metadata without touching config.py
+from models import Base  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Alembic config object
 # ---------------------------------------------------------------------------
 alembic_cfg = context.config
 
-# Override sqlalchemy.url from the DATABASE_URL env var (never hardcode it)
-alembic_cfg.set_main_option("sqlalchemy.url", app_config.DATABASE_URL)
+# Override sqlalchemy.url with our resolved URL (never rely on alembic.ini)
+alembic_cfg.set_main_option("sqlalchemy.url", _db_url)
 
-# Set up logging from alembic.ini if the file exists
+# Set up logging from alembic.ini when it exists
 if alembic_cfg.config_file_name is not None:
     fileConfig(alembic_cfg.config_file_name)
 
