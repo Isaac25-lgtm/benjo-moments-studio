@@ -24,7 +24,24 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 import config
 from extensions import init_limiter
 
+import subprocess
+
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Capture git SHA once at process startup (baked into the running image)
+# ---------------------------------------------------------------------------
+def _git_sha() -> str:
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            stderr=subprocess.DEVNULL,
+        ).decode().strip()
+    except Exception:
+        return "unknown"
+
+_BUILD_SHA = _git_sha()
+_BUILD_TIME = __import__("datetime").datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def create_app():
@@ -53,6 +70,20 @@ def create_app():
     # Rate limiter init (Phase 7)
     # -----------------------------------------------------------------------
     init_limiter(app)
+
+    # -----------------------------------------------------------------------
+    # /__version — deploy fingerprint (no auth required, no secrets exposed)
+    # -----------------------------------------------------------------------
+    @app.route("/__version")
+    def version():
+        return jsonify(
+            sha=_BUILD_SHA,
+            built_at=_BUILD_TIME,
+            flask_env=os.environ.get("FLASK_ENV", "not set"),
+            database_url_set=bool(os.environ.get("DATABASE_URL")),
+            upload_folder=config.UPLOAD_FOLDER,
+            render_service=os.environ.get("RENDER_SERVICE_NAME", "local"),
+        )
 
     # -----------------------------------------------------------------------
     # Upload directory
