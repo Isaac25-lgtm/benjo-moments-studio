@@ -334,7 +334,7 @@
             {% if gallery_images %}
             {% for img in gallery_images %}
             <div class="gallery-item">
-                <img src="{{ url_for('static', filename='uploads/' + img['album'] + '/' + img['filename']) }}"
+                <img src="{{ url_for('public.uploaded_file', album=img['album'], filename=img['filename']) }}"
                     alt="{{ img['caption'] or 'Gallery image' }}">
                 <div class="gallery-overlay">
                     <h3>{{ img['caption'] or 'Beautiful Moment' }}</h3>
@@ -481,7 +481,8 @@
                     <i class="fas fa-map-marker-alt"></i>
                     <div>
                         <strong>Location</strong><br>
-                        {{ settings['address'] if settings else 'Carol House, Plot 40, next to Bible House, along Bombo Road, Wandegeya' }}
+                        {{ settings['address'] if settings else 'Carol House, Plot 40, next to Bible House, along Bombo
+                        Road, Wandegeya' }}
                     </div>
                 </div>
 
