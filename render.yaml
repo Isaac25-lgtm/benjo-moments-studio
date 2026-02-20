@@ -7,11 +7,12 @@ services:
     runtime: python
     buildCommand: pip install -r requirements.txt
     # -----------------------------------------------------------------------
-    # Release Command (Phase 9): runs BEFORE the new version starts serving.
+    # preDeployCommand: runs ONCE before the new instance starts serving.
     # Applies any pending Alembic migrations safely on each deploy.
     # -----------------------------------------------------------------------
-    releaseCommand: alembic upgrade head
+    preDeployCommand: alembic upgrade head
     startCommand: gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --keep-alive 5 --log-level info
+    autoDeployTrigger: commit
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.0"
@@ -19,7 +20,7 @@ services:
         generateValue: true
       - key: FLASK_ENV
         value: production
-      # Set DATABASE_URL in the Render dashboard to your Neon connection string:
+      # Set DATABASE_URL in Render dashboard to your Neon connection string:
       # postgresql+psycopg2://neondb_owner:<password>@<host>.neon.tech/neondb?sslmode=require
       - key: DATABASE_URL
         sync: false
@@ -30,16 +31,16 @@ services:
       #   sync: false
       - key: UPLOAD_FOLDER
         value: /opt/render/project/data/uploads
+      # Set both in Render dashboard — do NOT hardcode credentials
       - key: DEFAULT_ADMIN_EMAIL
         sync: false
       - key: DEFAULT_ADMIN_PASSWORD
         sync: false
-      # Optional: REDIS_URL or RATELIMIT_STORAGE_URI for persistent rate limiting
+      # Optional: Redis for persistent rate limiting across workers
       # - key: REDIS_URL
       #   sync: false
     disk:
       name: benjo-moments-data
       mountPath: /opt/render/project/data
       sizeGB: 1
-    autoDeploy: true
     healthCheckPath: /
