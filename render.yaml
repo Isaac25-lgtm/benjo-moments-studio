@@ -12,7 +12,7 @@ services:
     # -----------------------------------------------------------------------
     preDeployCommand: alembic upgrade head
     startCommand: gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --keep-alive 5 --log-level info
-    autoDeployTrigger: commit
+    autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.0"

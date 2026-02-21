@@ -1206,6 +1206,21 @@
             initDownloadProtection();
         });
     </script>
+<script>
+// Auto-inject CSRF token into every POST form that doesn't already have one
+(function(){
+    var token = "{{ csrf_token() }}";
+    document.querySelectorAll('form').forEach(function(form){
+        if ((form.method || '').toUpperCase() === 'POST' && !form.querySelector('input[name="csrf_token"]')) {
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'csrf_token';
+            input.value = token;
+            form.prepend(input);
+        }
+    });
+})();
+</script>
 </body>
 
 </html>
