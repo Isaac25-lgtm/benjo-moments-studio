@@ -239,24 +239,12 @@
 {% block content %}
 <!-- Hero Slider Section -->
 <section class="hero-slider">
-    {% if hero_images %}
-    <!-- Admin-uploaded hero images -->
     {% for img in hero_images %}
     <div class="slide {{ 'active' if loop.first else '' }}"
         style="background-image: url('{{ url_for('public.hero_image_file', filename=img['filename']) }}');"></div>
     {% endfor %}
-    {% else %}
-    <!-- Default stock photos (shown when no images uploaded) -->
-    <div class="slide active"
-        style="background-image: url('https://images.unsplash.com/photo-1519741497674-611481863552?w=1920');"></div>
-    <div class="slide"
-        style="background-image: url('https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=1920');"></div>
-    <div class="slide"
-        style="background-image: url('https://images.unsplash.com/photo-1537633552985-df8429e8048b?w=1920');"></div>
-    <div class="slide"
-        style="background-image: url('https://images.unsplash.com/photo-1606216794074-735e91aa2c92?w=1920');"></div>
-    <div class="slide"
-        style="background-image: url('https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?w=1920');"></div>
+    {% if not hero_images %}
+    <div class="slide active" style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);"></div>
     {% endif %}
 
     <!-- Hero Content -->
@@ -331,7 +319,6 @@
             <p class="animate-on-scroll delay-1">A glimpse of our recent photography projects</p>
         </div>
         <div class="gallery-grid">
-            {% if gallery_images %}
             {% for img in gallery_images %}
             <div class="gallery-item">
                 <img src="{{ url_for('public.uploaded_file', album=img['album'], filename=img['filename']) }}"
@@ -342,28 +329,10 @@
                 </div>
             </div>
             {% endfor %}
-            {% else %}
-            <div class="gallery-item">
-                <img src="https://images.unsplash.com/photo-1519741497674-611481863552?w=600" alt="Wedding">
-                <div class="gallery-overlay">
-                    <h3>Beautiful Wedding</h3>
-                    <span>Wedding Photography</span>
-                </div>
-            </div>
-            <div class="gallery-item">
-                <img src="https://images.unsplash.com/photo-1537633552985-df8429e8048b?w=600" alt="Portrait">
-                <div class="gallery-overlay">
-                    <h3>Elegant Portrait</h3>
-                    <span>Portrait Session</span>
-                </div>
-            </div>
-            <div class="gallery-item">
-                <img src="https://images.unsplash.com/photo-1504439904031-93ded9f93e4e?w=600" alt="Event">
-                <div class="gallery-overlay">
-                    <h3>Special Event</h3>
-                    <span>Event Coverage</span>
-                </div>
-            </div>
+            {% if not gallery_images %}
+            <p style="text-align: center; color: #718096; grid-column: 1 / -1; padding: 40px 0;">
+                Photos coming soon. Stay tuned!
+            </p>
             {% endif %}
         </div>
         <div style="text-align: center; margin-top: 40px;">
@@ -377,7 +346,13 @@
     <div class="container">
         <div class="about-grid">
             <div class="about-image">
-                <img src="https://images.unsplash.com/photo-1554048612-b6a482bc67e5?w=800" alt="About Us">
+                {% if gallery_images %}
+                <img src="{{ url_for('public.uploaded_file', album=gallery_images[0]['album'], filename=gallery_images[0]['filename']) }}" alt="About Us">
+                {% else %}
+                <div style="width: 100%; height: 400px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-camera" style="font-size: 4rem; color: rgba(255,255,255,0.5);"></i>
+                </div>
+                {% endif %}
             </div>
             <div class="about-content">
                 <h2>About Us</h2>
