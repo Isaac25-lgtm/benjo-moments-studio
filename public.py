@@ -53,7 +53,8 @@ def services():
 def about():
     """About page."""
     settings = database.get_website_settings()
-    return render_template('public/about.html', settings=settings)
+    gallery_images = database.get_published_gallery_images()
+    return render_template('public/about.html', settings=settings, gallery_images=gallery_images)
 
 @public.route('/contact', methods=['GET', 'POST'])
 @limiter.limit("5 per minute", methods=["POST"])
