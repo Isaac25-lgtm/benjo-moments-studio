@@ -43,4 +43,4 @@ services:
       name: benjo-moments-data
       mountPath: /opt/render/project/data
       sizeGB: 1
-    healthCheckPath: /
+    healthCheckPath: /__version

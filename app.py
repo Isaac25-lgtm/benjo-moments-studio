@@ -89,6 +89,9 @@ def create_app():
     # Upload directory
     # -----------------------------------------------------------------------
     os.makedirs(config.UPLOAD_FOLDER, exist_ok=True)
+    for folder in config.ALBUM_FOLDERS.values():
+        os.makedirs(os.path.join(config.UPLOAD_FOLDER, folder), exist_ok=True)
+    os.makedirs(os.path.join(config.UPLOAD_FOLDER, "hero"), exist_ok=True)
 
     # NOTE (Phase 9): Alembic migrations are NO LONGER run at startup.
     # They run via Render's releaseCommand: "alembic upgrade head".
