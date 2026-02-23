@@ -35,15 +35,50 @@
                 <label for="category">Category <small style="color: #718096;">(What type of expense?)</small></label>
                 <select id="category" name="category" required>
                     <option value="">Select category</option>
-                    <option value="Equipment">Equipment (cameras, lenses, lights)</option>
-                    <option value="Transport">Transport (fuel, boda, taxi)</option>
-                    <option value="Rent">Rent (office, studio)</option>
-                    <option value="Utilities">Utilities (electricity, water, internet)</option>
-                    <option value="Maintenance">Maintenance (repairs, cleaning)</option>
-                    <option value="Marketing">Marketing (ads, printing, branding)</option>
-                    <option value="Salaries">Salaries (assistants, staff)</option>
-                    <option value="Supplies">Supplies (memory cards, batteries)</option>
-                    <option value="Software">Software (editing, subscriptions)</option>
+                    <optgroup label="EQUIPMENT &amp; GEAR">
+                        <option value="Camera Equipment">Camera Equipment (bodies, lenses)</option>
+                        <option value="Lighting Equipment">Lighting Equipment (flashes, softboxes, LEDs)</option>
+                        <option value="Audio Equipment">Audio Equipment (mics, recorders)</option>
+                        <option value="Video Equipment">Video Equipment (gimbals, drones, rigs)</option>
+                        <option value="Studio Props">Studio Props &amp; Backdrops</option>
+                        <option value="Computer & Editing">Computer &amp; Editing Hardware</option>
+                        <option value="Storage Media">Storage Media (cards, hard drives)</option>
+                    </optgroup>
+                    <optgroup label="OPERATIONS">
+                        <option value="Transport">Transport (fuel, boda, taxi)</option>
+                        <option value="Rent">Rent (office, studio space)</option>
+                        <option value="Utilities">Utilities (electricity, water, internet)</option>
+                        <option value="Maintenance & Repairs">Maintenance &amp; Repairs</option>
+                        <option value="Insurance">Insurance</option>
+                    </optgroup>
+                    <optgroup label="PRODUCTION &amp; PRINTING">
+                        <option value="Photo Printing">Photo Printing (paper, ink, frames)</option>
+                        <option value="Album & Packaging">Album &amp; Packaging materials</option>
+                        <option value="Passport Supplies">Passport &amp; ID Photo Supplies</option>
+                        <option value="Graphics & Design">Graphics &amp; Design materials</option>
+                    </optgroup>
+                    <optgroup label="SOFTWARE &amp; SUBSCRIPTIONS">
+                        <option value="Editing Software">Editing Software (Lightroom, Photoshop, Premiere)</option>
+                        <option value="Cloud Storage">Cloud Storage &amp; Backup</option>
+                        <option value="Website & Hosting">Website &amp; Hosting</option>
+                        <option value="Other Subscriptions">Other Subscriptions</option>
+                    </optgroup>
+                    <optgroup label="PEOPLE &amp; SERVICES">
+                        <option value="Salaries & Wages">Salaries &amp; Wages (staff, assistants)</option>
+                        <option value="Freelancer & Subcontractor">Freelancer &amp; Subcontractor (2nd shooter, editor)</option>
+                        <option value="Training & Development">Training &amp; Development (courses, workshops)</option>
+                    </optgroup>
+                    <optgroup label="MARKETING &amp; BUSINESS">
+                        <option value="Advertising">Advertising (social media, billboards, flyers)</option>
+                        <option value="Branding & Printing">Branding &amp; Printing (business cards, banners)</option>
+                        <option value="Client Entertainment">Client Entertainment &amp; Meetings</option>
+                    </optgroup>
+                    <optgroup label="EVENT-SPECIFIC COSTS">
+                        <option value="Wedding Costs">Wedding Shoot Costs</option>
+                        <option value="Event Venue">Event &amp; Venue Expenses</option>
+                        <option value="Food & Refreshments">Food &amp; Refreshments (on-site catering)</option>
+                        <option value="Permits & Licences">Permits &amp; Licences</option>
+                    </optgroup>
                     <option value="Other">Other</option>
                 </select>
             </div>
