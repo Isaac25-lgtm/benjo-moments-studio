@@ -356,11 +356,7 @@
     <div class="container">
         <div class="about-grid">
             <div class="about-image">
-                {% if gallery_images %}
-                <img src="{{ url_for('public.uploaded_file', album=gallery_images[0]['album'], filename=gallery_images[0]['filename']) }}" alt="About Us">
-                {% else %}
                 <img src="{{ url_for('static', filename='images/img-aboutus.jpg') }}" alt="About Us">
-                {% endif %}
             </div>
             <div class="about-content">
                 <h2>About Us</h2>
