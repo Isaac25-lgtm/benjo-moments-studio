@@ -82,14 +82,16 @@
                         <a href="{{ url_for('admin.edit_pricing', id=pkg['id']) }}" class="btn btn-sm btn-primary">
                             <i class="fas fa-edit"></i>
                         </a>
-                        <a href="{{ url_for('admin.toggle_pricing', id=pkg['id']) }}" class="btn btn-sm btn-warning"
+                        <form action="{{ url_for('admin.toggle_pricing', id=pkg['id']) }}" method="POST" style="display:inline;"
                             title="Toggle visibility">
-                            <i class="fas fa-eye"></i>
-                        </a>
-                        <a href="{{ url_for('admin.delete_pricing', id=pkg['id']) }}" class="btn btn-sm btn-danger"
-                            onclick="return confirm('Delete this package?')">
-                            <i class="fas fa-trash"></i>
-                        </a>
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-warning"><i class="fas fa-eye"></i></button>
+                        </form>
+                        <form action="{{ url_for('admin.delete_pricing', id=pkg['id']) }}" method="POST" style="display:inline;"
+                            onsubmit="return confirm('Delete this package?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                        </form>
                     </td>
                 </tr>
                 {% endfor %}

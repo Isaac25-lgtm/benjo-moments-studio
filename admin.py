@@ -99,6 +99,27 @@ def add_income():
     
     return redirect(url_for('admin.income'))
 
+@admin.route('/income/edit/<int:id>', methods=['POST'])
+@login_required
+def edit_income(id):
+    """Edit income record."""
+    date = request.form.get('date')
+    description = request.form.get('description', '').strip()
+    category = request.form.get('category', '').strip()
+    amount = parse_positive_float(request.form.get('amount'))
+
+    if not valid_date(date):
+        flash('Please provide a valid date.', 'error')
+    elif not all([description, category]):
+        flash('Description and category are required.', 'error')
+    elif amount is None:
+        flash('Amount must be a positive number.', 'error')
+    else:
+        database.update_income(id, date, description, category, amount)
+        flash('Income record updated successfully.', 'success')
+
+    return redirect(url_for('admin.income'))
+
 @admin.route('/income/delete/<int:id>', methods=['POST'])
 @login_required
 def delete_income(id):
@@ -135,6 +156,27 @@ def add_expense():
         database.add_expense(date, description, category, amount)
         flash('Expense record added successfully.', 'success')
     
+    return redirect(url_for('admin.expenses'))
+
+@admin.route('/expenses/edit/<int:id>', methods=['POST'])
+@login_required
+def edit_expense(id):
+    """Edit expense record."""
+    date = request.form.get('date')
+    description = request.form.get('description', '').strip()
+    category = request.form.get('category', '').strip()
+    amount = parse_positive_float(request.form.get('amount'))
+
+    if not valid_date(date):
+        flash('Please provide a valid date.', 'error')
+    elif not all([description, category]):
+        flash('Description and category are required.', 'error')
+    elif amount is None:
+        flash('Amount must be a positive number.', 'error')
+    else:
+        database.update_expense(id, date, description, category, amount)
+        flash('Expense record updated successfully.', 'success')
+
     return redirect(url_for('admin.expenses'))
 
 @admin.route('/expenses/delete/<int:id>', methods=['POST'])
@@ -176,6 +218,30 @@ def add_customer():
         database.add_customer(name, service, amount_paid, total_amount, contact)
         flash('Customer added successfully.', 'success')
     
+    return redirect(url_for('admin.customers'))
+
+@admin.route('/customers/edit/<int:id>', methods=['POST'])
+@login_required
+def edit_customer(id):
+    """Edit customer."""
+    name = request.form.get('name', '').strip()
+    service = request.form.get('service', '').strip()
+    amount_paid = parse_non_negative_float(request.form.get('amount_paid', 0))
+    total_amount = parse_positive_float(request.form.get('total_amount'))
+    contact = request.form.get('contact', '').strip()
+
+    if not all([name, service]):
+        flash('Name and service are required.', 'error')
+    elif total_amount is None:
+        flash('Total amount must be a positive number.', 'error')
+    elif amount_paid is None:
+        flash('Amount paid cannot be negative.', 'error')
+    elif amount_paid > total_amount:
+        flash('Amount paid cannot exceed total amount.', 'error')
+    else:
+        database.update_customer(id, name, service, amount_paid, total_amount, contact)
+        flash('Customer updated successfully.', 'success')
+
     return redirect(url_for('admin.customers'))
 
 @admin.route('/customers/delete/<int:id>', methods=['POST'])
@@ -267,6 +333,25 @@ def add_asset():
         database.add_asset(name, category, value, supplier)
         flash('Asset added successfully.', 'success')
     
+    return redirect(url_for('admin.assets'))
+
+@admin.route('/assets/edit/<int:id>', methods=['POST'])
+@login_required
+def edit_asset(id):
+    """Edit asset."""
+    name = request.form.get('name', '').strip()
+    category = request.form.get('category', '').strip()
+    value = parse_positive_float(request.form.get('value'))
+    supplier = request.form.get('supplier', '').strip()
+
+    if not all([name, category]):
+        flash('Name and category are required.', 'error')
+    elif value is None:
+        flash('Value must be a positive number.', 'error')
+    else:
+        database.update_asset(id, name, category, value, supplier)
+        flash('Asset updated successfully.', 'success')
+
     return redirect(url_for('admin.assets'))
 
 @admin.route('/assets/delete/<int:id>', methods=['POST'])

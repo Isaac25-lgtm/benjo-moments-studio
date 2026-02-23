@@ -498,7 +498,70 @@
         }
     });
 })();
+
+// ---- Edit Modal System ----
+function openEditModal(modalId) {
+    document.getElementById(modalId).style.display = 'flex';
+}
+function closeEditModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
+// Close modal when clicking outside
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('edit-modal-overlay')) {
+        e.target.style.display = 'none';
+    }
+});
 </script>
+<style>
+.edit-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+.edit-modal {
+    background: white;
+    border-radius: 16px;
+    padding: 30px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.edit-modal h3 {
+    margin: 0 0 20px 0;
+    color: #1a1a2e;
+}
+.edit-modal .form-group {
+    margin-bottom: 15px;
+}
+.edit-modal label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 5px;
+    font-size: 14px;
+    color: #4a5568;
+}
+.edit-modal input, .edit-modal select {
+    width: 100%;
+    padding: 10px 14px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+.edit-modal .modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+</style>
 </body>
 
 </html>

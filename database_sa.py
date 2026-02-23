@@ -257,6 +257,22 @@ def add_income(date, description, category, amount) -> None:
                   _audit_details(description=description, category=category, amount=amount))
 
 
+def update_income(income_id: int, date, description, category, amount) -> None:
+    amount = _validate_amount(amount, "Income amount")
+    date = _validate_date(date, "Income date")
+    actor = _actor_email()
+    with SessionLocal() as session:
+        row = session.get(Income, income_id)
+        if row and not row.is_deleted:
+            row.date = date
+            row.description = str(description).strip()
+            row.category = str(category).strip()
+            row.amount = amount
+            session.commit()
+            log_audit(actor, "update", "income", income_id,
+                      _audit_details(description=description, category=category, amount=amount))
+
+
 def delete_income(income_id: int) -> None:
     actor = _actor_email()
     with SessionLocal() as session:
@@ -313,6 +329,22 @@ def add_expense(date, description, category, amount) -> None:
         session.commit()
         log_audit(actor, "create", "expense", row.id,
                   _audit_details(description=description, category=category, amount=amount))
+
+
+def update_expense(expense_id: int, date, description, category, amount) -> None:
+    amount = _validate_amount(amount, "Expense amount")
+    date = _validate_date(date, "Expense date")
+    actor = _actor_email()
+    with SessionLocal() as session:
+        row = session.get(Expense, expense_id)
+        if row and not row.is_deleted:
+            row.date = date
+            row.description = str(description).strip()
+            row.category = str(category).strip()
+            row.amount = amount
+            session.commit()
+            log_audit(actor, "update", "expense", expense_id,
+                      _audit_details(description=description, category=category, amount=amount))
 
 
 def delete_expense(expense_id: int) -> None:
@@ -396,6 +428,25 @@ def update_customer_payment(customer_id: int, amount_paid) -> None:
             session.commit()
             log_audit(actor, "update", "customer", customer_id,
                       _audit_details(amount_paid=amount_paid))
+
+
+def update_customer(customer_id: int, name, service, amount_paid, total_amount, contact) -> None:
+    total_amount = _validate_amount(total_amount, "Total amount")
+    amount_paid = _validate_amount(amount_paid, "Amount paid")
+    if amount_paid > total_amount:
+        raise ValueError("Amount paid cannot exceed total amount.")
+    actor = _actor_email()
+    with SessionLocal() as session:
+        row = session.get(Customer, customer_id)
+        if row and not row.is_deleted:
+            row.name = str(name).strip()
+            row.service = str(service).strip()
+            row.amount_paid = amount_paid
+            row.total_amount = total_amount
+            row.contact = str(contact).strip()
+            session.commit()
+            log_audit(actor, "update", "customer", customer_id,
+                      _audit_details(name=name, service=service, total_amount=total_amount))
 
 
 def delete_customer(customer_id: int) -> None:
@@ -551,6 +602,21 @@ def add_asset(name, category, value, supplier) -> None:
         session.commit()
         log_audit(actor, "create", "asset", row.id,
                   _audit_details(name=name, category=category, value=value))
+
+
+def update_asset(asset_id: int, name, category, value, supplier) -> None:
+    value = _validate_amount(value, "Asset value")
+    actor = _actor_email()
+    with SessionLocal() as session:
+        row = session.get(Asset, asset_id)
+        if row:
+            row.name = str(name).strip()
+            row.category = str(category).strip()
+            row.value = value
+            row.supplier = str(supplier).strip()
+            session.commit()
+            log_audit(actor, "update", "asset", asset_id,
+                      _audit_details(name=name, category=category, value=value))
 
 
 def delete_asset(asset_id: int) -> None:

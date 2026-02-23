@@ -81,12 +81,16 @@
                 </td>
                 <td>
                     {% if r['status'] != 'Paid' %}
-                    <a href="{{ url_for('admin.mark_invoice_paid', id=r['id']) }}" class="btn btn-success btn-sm"><i
-                            class="fas fa-check"></i> Mark Paid</a>
+                    <form action="{{ url_for('admin.mark_invoice_paid', id=r['id']) }}" method="POST" style="display:inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-success btn-sm"><i class="fas fa-check"></i> Mark Paid</button>
+                    </form>
                     {% endif %}
-                    <a href="{{ url_for('admin.delete_invoice', id=r['id']) }}" class="btn btn-danger btn-sm"
-                        onclick="return confirm('Are you sure you want to delete this invoice?')"><i
-                            class="fas fa-trash"></i></a>
+                    <form action="{{ url_for('admin.delete_invoice', id=r['id']) }}" method="POST" style="display:inline;"
+                        onsubmit="return confirm('Are you sure you want to delete this invoice?')">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button>
+                    </form>
                 </td>
             </tr>
             {% endfor %}
