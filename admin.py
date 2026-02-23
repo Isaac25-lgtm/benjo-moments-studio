@@ -418,40 +418,43 @@ def gallery_manager():
 @login_required
 @limiter.limit("10 per minute")
 def upload_image():
-    """Upload new image to gallery."""
-    if 'image' not in request.files:
-        flash('No image file provided.', 'error')
-        return redirect(url_for('admin.gallery_manager'))
-    
-    file = request.files['image']
+    """Upload one or more images to gallery (batch upload up to 10)."""
+    files = request.files.getlist('image')
     album = request.form.get('album', 'other')
     caption = request.form.get('caption', '').strip()
-    
+
+    if not files or all(f.filename == '' for f in files):
+        flash('No image files selected.', 'error')
+        return redirect(url_for('admin.gallery_manager'))
+
     if album not in config.ALBUM_FOLDERS:
         flash('Invalid album selected.', 'error')
         return redirect(url_for('admin.gallery_manager'))
 
-    if file.filename == '':
-        flash('No file selected.', 'error')
-        return redirect(url_for('admin.gallery_manager'))
-    
-    if file and allowed_file(file.filename):
-        original_name = secure_filename(file.filename)
-        extension = original_name.rsplit('.', 1)[1].lower()
-        filename = f"{uuid.uuid4().hex}.{extension}"
-        
-        album_folder = config.ALBUM_FOLDERS.get(album, 'other')
-        upload_path = os.path.join(config.UPLOAD_FOLDER, album_folder)
-        
-        # Ensure directory exists
-        os.makedirs(upload_path, exist_ok=True)
-        
-        file.save(os.path.join(upload_path, filename))
-        database.add_gallery_image(filename, album, caption)
-        flash('Image uploaded successfully.', 'success')
-    else:
-        flash('Invalid file type. Allowed: png, jpg, jpeg, gif, webp', 'error')
-    
+    album_folder = config.ALBUM_FOLDERS.get(album, 'other')
+    upload_path = os.path.join(config.UPLOAD_FOLDER, album_folder)
+    os.makedirs(upload_path, exist_ok=True)
+
+    uploaded = 0
+    skipped = 0
+    for file in files[:10]:  # Hard limit: max 10 per request
+        if file.filename == '':
+            continue
+        if file and allowed_file(file.filename):
+            original_name = secure_filename(file.filename)
+            extension = original_name.rsplit('.', 1)[1].lower()
+            filename = f"{uuid.uuid4().hex}.{extension}"
+            file.save(os.path.join(upload_path, filename))
+            database.add_gallery_image(filename, album, caption)
+            uploaded += 1
+        else:
+            skipped += 1
+
+    if uploaded:
+        flash(f'{uploaded} image{"s" if uploaded > 1 else ""} uploaded successfully.', 'success')
+    if skipped:
+        flash(f'{skipped} file{"s" if skipped > 1 else ""} skipped (invalid type).', 'warning')
+
     return redirect(url_for('admin.gallery_manager'))
 
 @admin.route('/gallery/toggle/<int:id>', methods=['POST'])

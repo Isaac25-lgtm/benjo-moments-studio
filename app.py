@@ -159,6 +159,16 @@ def create_app():
         return jsonify(error="Too many requests", retry_after=str(e.description)), 429
 
     # -----------------------------------------------------------------------
+    # Upload too large error handler (413)
+    # -----------------------------------------------------------------------
+    @app.errorhandler(413)
+    def request_entity_too_large(e):
+        from flask import flash, redirect, request, url_for
+        flash("File(s) too large. Please upload smaller images (max 10 MB each, 100 MB total).", "error")
+        referrer = request.referrer or url_for("public.index")
+        return redirect(referrer), 303
+
+    # -----------------------------------------------------------------------
     # Blueprint registration
     # -----------------------------------------------------------------------
     from auth import auth

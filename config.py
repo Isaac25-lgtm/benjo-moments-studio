@@ -78,7 +78,7 @@ if not DATABASE_URL:
 # ---------------------------------------------------------------------------
 UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", os.path.join(BASE_DIR, "static", "uploads"))
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
-MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # 10 MB
+MAX_CONTENT_LENGTH = 100 * 1024 * 1024  # 100 MB (supports batch uploads of up to 10 images)
 
 # ---------------------------------------------------------------------------
 # Session / CSRF

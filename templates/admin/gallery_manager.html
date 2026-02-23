@@ -13,18 +13,19 @@
 </div>
 
 <div class="content-card">
-    <h2><i class="fas fa-upload"></i> Upload New Image</h2>
-    <p class="text-muted" style="margin-bottom: 20px;"><strong>How to use:</strong> Click "Choose File" to select a
-        photo from your computer. Pick the album category it belongs to (Weddings, Kukyala, etc.), optionally add a
-        caption, then click "Upload Image". The image will appear on your website gallery.</p>
+    <h2><i class="fas fa-upload"></i> Upload Images</h2>
+    <p class="text-muted" style="margin-bottom: 20px;"><strong>How to use:</strong> Click "Choose Files" to select
+        up to <strong>10 photos at once</strong> from your computer. Pick the album category they belong to (Weddings,
+        Kukyala, etc.), optionally add a caption, then click "Upload Images". They will appear on your website gallery.</p>
     <form action="{{ url_for('admin.upload_image') }}" method="POST" enctype="multipart/form-data">
         <div class="form-row">
             <div class="form-group">
-                <label for="image">Select Image <small style="color: #718096;">(JPG, PNG, WebP)</small></label>
-                <input type="file" id="image" name="image" accept="image/*" required>
+                <label for="image">Select Images <small style="color: #718096;">(JPG, PNG, WebP — up to 10 at once)</small></label>
+                <input type="file" id="image" name="image" accept="image/*" multiple required>
+                <small id="file-count" style="color: #718096; display: block; margin-top: 5px;"></small>
             </div>
             <div class="form-group">
-                <label for="album">Album <small style="color: #718096;">(Category for this image)</small></label>
+                <label for="album">Album <small style="color: #718096;">(Category for these images)</small></label>
                 <select id="album" name="album" required>
                     {% for a in albums %}
                     <option value="{{ a }}">{{ a.title() }}</option>
@@ -32,13 +33,28 @@
                 </select>
             </div>
             <div class="form-group">
-                <label for="caption">Caption <small style="color: #718096;">(Short description -
+                <label for="caption">Caption <small style="color: #718096;">(Applies to all selected images -
                         optional)</small></label>
                 <input type="text" id="caption" name="caption" placeholder="e.g., John & Mary's Wedding">
             </div>
         </div>
-        <button type="submit" class="btn btn-primary"><i class="fas fa-upload"></i> Upload Image</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-upload"></i> Upload Images</button>
     </form>
+    <script>
+    document.getElementById('image').addEventListener('change', function() {
+        var count = this.files.length;
+        var el = document.getElementById('file-count');
+        if (count > 10) {
+            el.style.color = '#e53e3e';
+            el.textContent = count + ' files selected — only the first 10 will be uploaded';
+        } else if (count > 0) {
+            el.style.color = '#38a169';
+            el.textContent = count + ' file' + (count > 1 ? 's' : '') + ' selected';
+        } else {
+            el.textContent = '';
+        }
+    });
+    </script>
 </div>
 
 <div class="content-card">
