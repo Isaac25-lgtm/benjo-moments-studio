@@ -197,7 +197,7 @@
             width: 100%;
             height: 280px;
             object-fit: cover;
-            object-position: center center;
+            object-position: center 20%;
             transition: transform 0.5s;
         }
 
@@ -1227,12 +1227,32 @@
             });
         });
 
+        // ===== SMART FACE CROP (progressive enhancement) =====
+        function initFaceCrop() {
+            if (!('FaceDetector' in window)) return;
+            var detector = new FaceDetector({fastMode: true, maxDetectedFaces: 1});
+            document.querySelectorAll('.gallery-item img').forEach(function(img) {
+                var run = function() {
+                    detector.detect(img).then(function(faces) {
+                        if (faces.length > 0) {
+                            var face = faces[0].boundingBox;
+                            var yPercent = Math.round(((face.y + face.height / 2) / img.naturalHeight) * 100);
+                            yPercent = Math.max(10, Math.min(90, yPercent));
+                            img.style.objectPosition = 'center ' + yPercent + '%';
+                        }
+                    }).catch(function(){});
+                };
+                if (img.complete) run(); else img.addEventListener('load', run);
+            });
+        }
+
         // ===== INITIALIZE ALL =====
         document.addEventListener('DOMContentLoaded', () => {
             initLightbox();
             initScrollAnimations();
             initLazyLoading();
             initDownloadProtection();
+            initFaceCrop();
         });
     </script>
 <script>
