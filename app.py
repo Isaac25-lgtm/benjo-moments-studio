@@ -9,7 +9,8 @@ import logging
 import os
 import hmac
 import secrets
-from datetime import timedelta
+from datetime import datetime, timedelta
+from urllib.parse import urlparse
 
 # Load .env file for local development (python-dotenv)
 try:
@@ -19,6 +20,7 @@ except ImportError:
     pass
 
 from flask import Flask, abort, jsonify, request, session
+from sqlalchemy import text
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 import config
@@ -79,11 +81,24 @@ def create_app():
         return jsonify(
             sha=_BUILD_SHA,
             built_at=_BUILD_TIME,
-            flask_env=os.environ.get("FLASK_ENV", "not set"),
-            database_url_set=bool(os.environ.get("DATABASE_URL")),
-            upload_folder=config.UPLOAD_FOLDER,
             render_service=os.environ.get("RENDER_SERVICE_NAME", "local"),
         )
+
+    @app.route("/healthz")
+    def health():
+        try:
+            from db import engine
+            with engine.connect() as connection:
+                connection.execute(text("SELECT 1"))
+            if not os.path.isdir(config.UPLOAD_FOLDER) or not os.access(
+                config.UPLOAD_FOLDER,
+                os.W_OK,
+            ):
+                raise RuntimeError("Upload storage is not writable.")
+        except Exception:
+            logger.exception("Health check failed")
+            return jsonify(status="unhealthy"), 503
+        return jsonify(status="ok"), 200
 
     # -----------------------------------------------------------------------
     # Upload directory
@@ -118,6 +133,15 @@ def create_app():
         return token
 
     app.jinja_env.globals["csrf_token"] = generate_csrf_token
+    app.jinja_env.globals["current_year"] = datetime.now().year
+
+    def whatsapp_url(number):
+        digits = "".join(ch for ch in str(number or "") if ch.isdigit())
+        if digits.startswith("0"):
+            digits = "256" + digits[1:]
+        return f"https://wa.me/{digits}" if digits else None
+
+    app.jinja_env.globals["whatsapp_url"] = whatsapp_url
 
     # -----------------------------------------------------------------------
     # CSRF protection middleware
@@ -138,6 +162,12 @@ def create_app():
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        if config.IS_PRODUCTION:
+            response.headers.setdefault(
+                "Strict-Transport-Security",
+                "max-age=31536000; includeSubDomains",
+            )
         return response
 
     # -----------------------------------------------------------------------
@@ -149,12 +179,14 @@ def create_app():
         # For HTML requests: flash a message and redirect back (no crash page).
         # accept_html is a callable that returns True/False.
         try:
-            wants_html = request.accept_mimetypes.accept_html()
+            wants_html = request.accept_mimetypes.accept_html
         except Exception:
             wants_html = True  # safe default — show friendly redirect
         if wants_html:
             flash("Too many requests. Please slow down and try again in a minute.", "error")
-            referrer = request.referrer or url_for("public.index")
+            referrer = request.referrer
+            if not referrer or urlparse(referrer).netloc != request.host:
+                referrer = url_for("public.index")
             return redirect(referrer), 303
         return jsonify(error="Too many requests", retry_after=str(e.description)), 429
 
@@ -165,7 +197,9 @@ def create_app():
     def request_entity_too_large(e):
         from flask import flash, redirect, request, url_for
         flash("File(s) too large. Please upload smaller images (max 10 MB each, 100 MB total).", "error")
-        referrer = request.referrer or url_for("public.index")
+        referrer = request.referrer
+        if not referrer or urlparse(referrer).netloc != request.host:
+            referrer = url_for("public.index")
         return redirect(referrer), 303
 
     # -----------------------------------------------------------------------
@@ -179,10 +213,9 @@ def create_app():
     app.register_blueprint(public)
 
     logger.info(
-        "Benjo Moments started | env=%s | TEST_AUTH_MODE=%s | DB=%s | limiter_storage=%s",
+        "Benjo Moments started | env=%s | TEST_AUTH_MODE=%s | DB=postgresql | limiter_storage=%s",
         config.FLASK_ENV,
         config.TEST_AUTH_MODE,
-        "sqlite" if "sqlite" in (config.DATABASE_URL or "") else "postgres",
         config.RATELIMIT_STORAGE_URI,
     )
     return app

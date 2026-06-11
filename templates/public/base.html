@@ -954,10 +954,10 @@
                     <p>{{ settings['about_text'][:150] if settings and settings['about_text'] else 'Professional
                         photography services for your special moments.' }}...</p>
                     <div class="social-links">
-                        <a href="#"><i class="fab fa-facebook-f"></i></a>
-                        <a href="#"><i class="fab fa-instagram"></i></a>
-                        <a href="#"><i class="fab fa-twitter"></i></a>
-                        <a href="#"><i class="fab fa-youtube"></i></a>
+                        {% if settings and settings['facebook_url'] %}<a href="{{ settings['facebook_url'] }}" target="_blank" rel="noopener noreferrer"><i class="fab fa-facebook-f"></i></a>{% endif %}
+                        {% if settings and settings['instagram_url'] %}<a href="{{ settings['instagram_url'] }}" target="_blank" rel="noopener noreferrer"><i class="fab fa-instagram"></i></a>{% endif %}
+                        {% if settings and settings['youtube_url'] %}<a href="{{ settings['youtube_url'] }}" target="_blank" rel="noopener noreferrer"><i class="fab fa-youtube"></i></a>{% endif %}
+                        {% if settings and settings['whatsapp_number'] %}<a href="{{ whatsapp_url(settings['whatsapp_number']) }}" target="_blank" rel="noopener noreferrer"><i class="fab fa-whatsapp"></i></a>{% endif %}
                     </div>
                 </div>
                 <div>
@@ -978,7 +978,7 @@
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>&copy; 2026 {{ settings['site_name'] if settings else 'Benjo Moments' }}. All rights reserved.</p>
+                <p>&copy; {{ current_year }} {{ settings['site_name'] if settings else 'Benjo Moments' }}. All rights reserved.</p>
                 <!-- Hidden Manager's Portal Link -->
                 <p style="margin-top: 15px;">
                     <a href="{{ url_for('auth.login') }}"
@@ -993,9 +993,12 @@
     </footer>
 
     <!-- Floating WhatsApp Button -->
-    <a href="https://wa.me/256759989861" target="_blank" class="whatsapp-float" title="Chat with us on WhatsApp">
+    {% if settings and settings['whatsapp_number'] %}
+    <a href="{{ whatsapp_url(settings['whatsapp_number']) }}" target="_blank" rel="noopener noreferrer"
+        class="whatsapp-float" title="Chat with us on WhatsApp">
         <i class="fab fa-whatsapp"></i>
     </a>
+    {% endif %}
 
     <style>
         .whatsapp-float {

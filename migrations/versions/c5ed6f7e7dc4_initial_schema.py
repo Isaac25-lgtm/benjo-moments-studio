@@ -4,12 +4,7 @@ Revision ID: c5ed6f7e7dc4
 Revises:
 Create Date: 2026-02-20
 
-This migration is designed to run on a *fresh* PostgreSQL (or SQLite)
-database. It creates every table the application needs.
-
-If you are upgrading an existing SQLite database that already has the
-old tables, run the standalone migration script first:
-    python scripts/migrate_sqlite_to_postgres.py
+This migration is designed to run on a fresh PostgreSQL database.
 """
 from typing import Sequence, Union
 
@@ -83,7 +78,7 @@ def upgrade() -> None:
         sa.Column("customer_id", sa.Integer(), nullable=False),
         sa.Column("date", sa.Date(), nullable=False),
         sa.Column("amount", sa.Numeric(14, 2), nullable=False),
-        sa.Column("status", sa.String(length=50), nullable=False, server_default="Pending"),
+        sa.Column("status", sa.String(length=50), nullable=False, server_default="pending"),
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.text("now()")),
         sa.Column("is_deleted", sa.Boolean(), nullable=False, server_default=sa.text("false")),
         sa.Column("deleted_at", sa.DateTime(), nullable=True),

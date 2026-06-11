@@ -2,11 +2,8 @@
 database.py — Compatibility shim.
 
 All application code (admin.py, public.py, auth.py) imports from this module.
-This shim now delegates everything to database_sa (SQLAlchemy) so the rest of
-the app needs zero changes.
-
-The old sqlite3 implementation has been archived to database_sqlite_legacy.py
-and is no longer used by the application.
+This shim delegates application database operations to the PostgreSQL
+SQLAlchemy implementation in database_sa.
 """
 from database_sa import *  # noqa: F401, F403 — intentional re-export
 from database_sa import (  # explicit re-export for IDEs
@@ -33,6 +30,7 @@ from database_sa import (  # explicit re-export for IDEs
     get_all_invoices,
     generate_invoice_number,
     add_invoice,
+    mark_invoice_paid,
     update_invoice_status,
     delete_invoice,
     get_all_assets,

@@ -51,10 +51,10 @@
                 <div style="margin-top: 30px;">
                     <h4 style="margin-bottom: 15px;">Follow Us</h4>
                     <div class="social-links">
-                        <a href="#"><i class="fab fa-facebook-f"></i></a>
-                        <a href="#"><i class="fab fa-instagram"></i></a>
-                        <a href="#"><i class="fab fa-twitter"></i></a>
-                        <a href="#"><i class="fab fa-whatsapp"></i></a>
+                        {% if settings and settings['facebook_url'] %}<a href="{{ settings['facebook_url'] }}" target="_blank" rel="noopener noreferrer"><i class="fab fa-facebook-f"></i></a>{% endif %}
+                        {% if settings and settings['instagram_url'] %}<a href="{{ settings['instagram_url'] }}" target="_blank" rel="noopener noreferrer"><i class="fab fa-instagram"></i></a>{% endif %}
+                        {% if settings and settings['youtube_url'] %}<a href="{{ settings['youtube_url'] }}" target="_blank" rel="noopener noreferrer"><i class="fab fa-youtube"></i></a>{% endif %}
+                        {% if settings and settings['whatsapp_number'] %}<a href="{{ whatsapp_url(settings['whatsapp_number']) }}" target="_blank" rel="noopener noreferrer"><i class="fab fa-whatsapp"></i></a>{% endif %}
                     </div>
                 </div>
             </div>

@@ -11,52 +11,37 @@ For Alembic migrations, the Base and engine are imported from models.
 """
 import logging
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import config
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Engine
-# ---------------------------------------------------------------------------
-_is_sqlite = config.DATABASE_URL and config.DATABASE_URL.startswith("sqlite")
-
-_connect_args = {}
-_pool_kwargs = {}
-
-if _is_sqlite:
-    # SQLite needs check_same_thread=False for Flask's threaded server.
-    # Do NOT add pool_size/max_overflow — SQLite uses StaticPool by default.
-    _connect_args = {"check_same_thread": False}
-    logger.info("Database: SQLite (fallback mode) at %s", config.DATABASE_PATH)
-else:
-    # PostgreSQL (Neon): conservative pool sizing for 2 gunicorn workers.
-    # Each worker × 3 connections = 6 active + 2 overflow = 8 max connections.
-    # Neon free tier allows 10 concurrent connections.
-    _pool_kwargs = {
-        "pool_size": 3,
-        "max_overflow": 2,
-    }
-    logger.info("Database: PostgreSQL via DATABASE_URL")
+logger.info(
+    "Database: PostgreSQL | pool_size=%s | max_overflow=%s",
+    config.DB_POOL_SIZE,
+    config.DB_MAX_OVERFLOW,
+)
 
 engine = create_engine(
     config.DATABASE_URL,
-    connect_args=_connect_args,
-    pool_pre_ping=True,     # detect and drop stale connections (essential for Neon)
-    pool_recycle=300,       # recycle every 5 min (Neon closes idle > 5 min)
-    echo=False,             # set True temporarily for query debugging
-    **_pool_kwargs,
+    connect_args={
+        "connect_timeout": config.DB_CONNECT_TIMEOUT,
+        "application_name": "benjo_moments",
+        "keepalives": 1,
+        "keepalives_idle": 30,
+        "keepalives_interval": 10,
+        "keepalives_count": 5,
+    },
+    pool_pre_ping=True,
+    pool_recycle=config.DB_POOL_RECYCLE,
+    pool_use_lifo=True,
+    pool_size=config.DB_POOL_SIZE,
+    max_overflow=config.DB_MAX_OVERFLOW,
+    pool_timeout=config.DB_POOL_TIMEOUT,
+    echo=False,
 )
-
-# Enable foreign key enforcement for SQLite
-if _is_sqlite:
-    @event.listens_for(engine, "connect")
-    def _set_sqlite_pragma(dbapi_conn, _connection_record):
-        cursor = dbapi_conn.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
 
 # ---------------------------------------------------------------------------
 # Session factory

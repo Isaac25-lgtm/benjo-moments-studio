@@ -34,22 +34,19 @@ except ImportError:
 _db_url = os.environ.get("DATABASE_URL")
 
 if not _db_url:
-    # Local dev fallback: honour USE_SQLITE_FALLBACK / DATABASE_PATH
-    if os.environ.get("USE_SQLITE_FALLBACK", "false").lower() in ("1", "true", "yes"):
-        _db_url = "sqlite:///" + os.environ.get(
-            "DATABASE_PATH",
-            str(APP_ROOT / "database.db"),
-        )
-    else:
-        raise RuntimeError(
-            "DATABASE_URL is not set. "
-            "Set it in your Render dashboard (Neon Postgres URL) "
-            "or set USE_SQLITE_FALLBACK=true for local dev."
-        )
+    raise RuntimeError(
+        "DATABASE_URL is required. Set a PostgreSQL URL in .env locally "
+        "or in the Render dashboard."
+    )
 
 # Normalise Render's legacy 'postgres://' scheme for SQLAlchemy 2.x
 if _db_url.startswith("postgres://"):
-    _db_url = _db_url.replace("postgres://", "postgresql://", 1)
+    _db_url = _db_url.replace("postgres://", "postgresql+psycopg2://", 1)
+elif _db_url.startswith("postgresql://"):
+    _db_url = _db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+
+if not _db_url.startswith("postgresql+psycopg2://"):
+    raise RuntimeError("DATABASE_URL must use PostgreSQL with psycopg2.")
 
 # Import models — this registers ORM metadata without touching config.py
 from models import Base  # noqa: E402

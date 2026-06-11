@@ -1,9 +1,5 @@
 """
-SQLAlchemy-based CRUD operations for Benjo Moments Photography System.
-
-This module is a drop-in replacement for the old sqlite3 database.py.
-All public function signatures are identical to the sqlite3 originals so
-that admin.py, public.py, and auth.py require zero changes.
+PostgreSQL CRUD operations for Benjo Moments Photography System.
 
 Phase 6 additions:
   - _actor_email(), _client_ip(), _user_agent() — safe request-context helpers
@@ -15,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import secrets
 from datetime import date as date_type
 from datetime import datetime
@@ -38,7 +35,7 @@ logger = logging.getLogger(__name__)
 # Row compatibility wrapper
 # ---------------------------------------------------------------------------
 class _Row(dict):
-    """Dict subclass that supports attribute-style access, like sqlite3.Row."""
+    """Dictionary row with optional attribute-style access."""
     def __getattr__(self, item):
         try:
             return self[item]
@@ -112,8 +109,17 @@ def _validate_amount(value, label: str = "Amount") -> float:
         amount = float(value)
     except (TypeError, ValueError):
         raise ValueError(f"{label} must be a number.")
+    if not math.isfinite(amount):
+        raise ValueError(f"{label} must be a finite number.")
     if amount < 0:
         raise ValueError(f"{label} must be zero or greater.")
+    return amount
+
+
+def _validate_positive_amount(value, label: str = "Amount") -> float:
+    amount = _validate_amount(value, label)
+    if amount <= 0:
+        raise ValueError(f"{label} must be greater than zero.")
     return amount
 
 
@@ -144,7 +150,7 @@ def create_default_admin():
         if exists == 0:
             session.add(User(
                 name=config.DEFAULT_ADMIN_NAME,
-                email=config.DEFAULT_ADMIN_EMAIL,
+                email=config.DEFAULT_ADMIN_EMAIL.strip().lower(),
                 password_hash=generate_password_hash(config.DEFAULT_ADMIN_PASSWORD),
                 role="admin",
             ))
@@ -169,6 +175,7 @@ def init_default_settings():
                 contact_phone="0759989861 / 0778728089",
                 contact_email="info@benjomoments.com",
                 address="Carol House, Plot 40, next to Bible House, along Bombo Road, Wandegeya",
+                whatsapp_number="256759989861",
             ))
             session.commit()
             logger.info("Default website settings seeded.")
@@ -212,7 +219,9 @@ def create_default_pricing_packages():
 # ---------------------------------------------------------------------------
 def get_user_by_email(email: str) -> Optional[_Row]:
     with SessionLocal() as session:
-        user = session.scalar(select(User).where(User.email == email))
+        user = session.scalar(
+            select(User).where(func.lower(User.email) == str(email).strip().lower())
+        )
         if user is None:
             return None
         row = _Row(user.as_dict())
@@ -242,7 +251,7 @@ def get_all_income() -> list[_Row]:
 
 
 def add_income(date, description, category, amount) -> None:
-    amount = _validate_amount(amount, "Income amount")
+    amount = _validate_positive_amount(amount, "Income amount")
     date = _validate_date(date, "Income date")
     if not str(description).strip():
         raise ValueError("Description is required.")
@@ -258,12 +267,14 @@ def add_income(date, description, category, amount) -> None:
 
 
 def update_income(income_id: int, date, description, category, amount) -> None:
-    amount = _validate_amount(amount, "Income amount")
+    amount = _validate_positive_amount(amount, "Income amount")
     date = _validate_date(date, "Income date")
     actor = _actor_email()
     with SessionLocal() as session:
         row = session.get(Income, income_id)
         if row and not row.is_deleted:
+            if row.source_invoice_id:
+                raise ValueError("Invoice-generated income must be managed from the invoice.")
             row.date = date
             row.description = str(description).strip()
             row.category = str(category).strip()
@@ -278,6 +289,8 @@ def delete_income(income_id: int) -> None:
     with SessionLocal() as session:
         row = session.get(Income, income_id)
         if row:
+            if row.source_invoice_id:
+                raise ValueError("Invoice-generated income must be managed from the invoice.")
             row.is_deleted = True
             row.deleted_at = datetime.utcnow()
             session.commit()
@@ -316,7 +329,7 @@ def get_all_expenses() -> list[_Row]:
 
 
 def add_expense(date, description, category, amount) -> None:
-    amount = _validate_amount(amount, "Expense amount")
+    amount = _validate_positive_amount(amount, "Expense amount")
     date = _validate_date(date, "Expense date")
     if not str(description).strip():
         raise ValueError("Description is required.")
@@ -332,7 +345,7 @@ def add_expense(date, description, category, amount) -> None:
 
 
 def update_expense(expense_id: int, date, description, category, amount) -> None:
-    amount = _validate_amount(amount, "Expense amount")
+    amount = _validate_positive_amount(amount, "Expense amount")
     date = _validate_date(date, "Expense date")
     actor = _actor_email()
     with SessionLocal() as session:
@@ -402,7 +415,7 @@ def add_customer(name, service, amount_paid, total_amount, contact) -> None:
         raise ValueError("Customer name is required.")
     if not str(service).strip():
         raise ValueError("Service is required.")
-    total_amount = _validate_amount(total_amount, "Total amount")
+    total_amount = _validate_positive_amount(total_amount, "Total amount")
     amount_paid = _validate_amount(amount_paid, "Amount paid")
     if amount_paid > total_amount:
         raise ValueError("Amount paid cannot exceed total amount.")
@@ -431,7 +444,7 @@ def update_customer_payment(customer_id: int, amount_paid) -> None:
 
 
 def update_customer(customer_id: int, name, service, amount_paid, total_amount, contact) -> None:
-    total_amount = _validate_amount(total_amount, "Total amount")
+    total_amount = _validate_positive_amount(total_amount, "Total amount")
     amount_paid = _validate_amount(amount_paid, "Amount paid")
     if amount_paid > total_amount:
         raise ValueError("Amount paid cannot exceed total amount.")
@@ -439,6 +452,28 @@ def update_customer(customer_id: int, name, service, amount_paid, total_amount, 
     with SessionLocal() as session:
         row = session.get(Customer, customer_id)
         if row and not row.is_deleted:
+            paid_invoice_total = session.scalar(
+                select(func.coalesce(func.sum(Invoice.amount), 0)).where(
+                    Invoice.customer_id == customer_id,
+                    Invoice.status == "paid",
+                    Invoice.is_deleted == False,  # noqa: E712
+                )
+            )
+            if amount_paid < float(paid_invoice_total):
+                raise ValueError(
+                    "Amount paid cannot be lower than the total of paid invoices."
+                )
+            pending_invoice_total = session.scalar(
+                select(func.coalesce(func.sum(Invoice.amount), 0)).where(
+                    Invoice.customer_id == customer_id,
+                    Invoice.status == "pending",
+                    Invoice.is_deleted == False,  # noqa: E712
+                )
+            )
+            if total_amount - amount_paid < float(pending_invoice_total):
+                raise ValueError(
+                    "The new total would be lower than the customer's pending invoices."
+                )
             row.name = str(name).strip()
             row.service = str(service).strip()
             row.amount_paid = amount_paid
@@ -522,10 +557,32 @@ def generate_invoice_number() -> str:
 
 
 def add_invoice(invoice_number, customer_id, date, amount) -> str:
-    amount = _validate_amount(amount, "Invoice amount")
+    amount = _validate_positive_amount(amount, "Invoice amount")
     date = _validate_date(date, "Invoice date")
     actor = _actor_email()
     with SessionLocal() as session:
+        customer = session.scalar(
+            select(Customer)
+            .where(Customer.id == customer_id, Customer.is_deleted == False)  # noqa: E712
+            .with_for_update()
+        )
+        if not customer:
+            raise ValueError("Selected customer does not exist.")
+        pending_total = session.scalar(
+            select(func.coalesce(func.sum(Invoice.amount), 0)).where(
+                Invoice.customer_id == customer_id,
+                Invoice.status == "pending",
+                Invoice.is_deleted == False,  # noqa: E712
+            )
+        )
+        available_to_invoice = (
+            float(customer.total_amount - customer.amount_paid) - float(pending_total)
+        )
+        if amount > available_to_invoice:
+            raise ValueError(
+                "Invoice amount cannot exceed the unbilled balance "
+                f"({max(available_to_invoice, 0):,.0f})."
+            )
         for _ in range(20):
             num = (invoice_number or "").strip() or _gen_invoice_number(session)
             try:
@@ -547,6 +604,9 @@ def update_invoice_status(invoice_id: int, status: str) -> None:
     status = str(status).strip().lower()
     if status not in _VALID_STATUSES:
         raise ValueError(f"Invalid invoice status '{status}'. Allowed: {', '.join(sorted(_VALID_STATUSES))}.")
+    if status == "paid":
+        mark_invoice_paid(invoice_id)
+        return
     actor = _actor_email()
     with SessionLocal() as session:
         row = session.get(Invoice, invoice_id)
@@ -558,11 +618,75 @@ def update_invoice_status(invoice_id: int, status: str) -> None:
                       _audit_details(old_status=old_status, new_status=status))
 
 
+def mark_invoice_paid(invoice_id: int) -> bool:
+    """Atomically settle an invoice, customer balance, and income ledger."""
+    actor = _actor_email()
+    with SessionLocal() as session:
+        invoice = session.scalar(
+            select(Invoice)
+            .where(Invoice.id == invoice_id, Invoice.is_deleted == False)  # noqa: E712
+            .with_for_update()
+        )
+        if not invoice:
+            raise ValueError("Invoice not found.")
+        if invoice.status == "paid":
+            return False
+
+        customer = session.scalar(
+            select(Customer)
+            .where(Customer.id == invoice.customer_id, Customer.is_deleted == False)  # noqa: E712
+            .with_for_update()
+        )
+        if not customer:
+            raise ValueError("The invoice customer no longer exists.")
+
+        outstanding = float(customer.total_amount - customer.amount_paid)
+        if float(invoice.amount) > outstanding:
+            raise ValueError(
+                "This invoice exceeds the customer's current outstanding balance."
+            )
+
+        invoice.status = "paid"
+        customer.amount_paid = float(customer.amount_paid) + float(invoice.amount)
+        session.add(Income(
+            date=date_type.today(),
+            description=f"Payment for {invoice.invoice_number} - {customer.name}",
+            category="Invoice Payment",
+            amount=invoice.amount,
+            source_invoice_id=invoice.id,
+        ))
+        session.commit()
+
+    log_audit(
+        actor,
+        "settle",
+        "invoice",
+        invoice_id,
+        _audit_details(invoice_number=invoice.invoice_number, amount=float(invoice.amount)),
+    )
+    return True
+
+
 def delete_invoice(invoice_id: int) -> None:
     actor = _actor_email()
     with SessionLocal() as session:
         row = session.get(Invoice, invoice_id)
         if row:
+            generated_income = session.scalar(
+                select(Income).where(
+                    Income.source_invoice_id == invoice_id,
+                    Income.is_deleted == False,  # noqa: E712
+                )
+            )
+            if generated_income:
+                generated_income.is_deleted = True
+                generated_income.deleted_at = datetime.utcnow()
+                customer = session.get(Customer, row.customer_id)
+                if customer:
+                    customer.amount_paid = max(
+                        0,
+                        float(customer.amount_paid) - float(row.amount),
+                    )
             row.is_deleted = True
             row.deleted_at = datetime.utcnow()
             session.commit()
@@ -594,7 +718,7 @@ def get_all_assets() -> list[_Row]:
 def add_asset(name, category, value, supplier) -> None:
     if not str(name).strip():
         raise ValueError("Asset name is required.")
-    value = _validate_amount(value, "Asset value")
+    value = _validate_positive_amount(value, "Asset value")
     actor = _actor_email()
     with SessionLocal() as session:
         row = Asset(name=name, category=category, value=value, supplier=supplier)
@@ -605,7 +729,7 @@ def add_asset(name, category, value, supplier) -> None:
 
 
 def update_asset(asset_id: int, name, category, value, supplier) -> None:
-    value = _validate_amount(value, "Asset value")
+    value = _validate_positive_amount(value, "Asset value")
     actor = _actor_email()
     with SessionLocal() as session:
         row = session.get(Asset, asset_id)
@@ -650,7 +774,7 @@ def get_all_gallery_images() -> list[_Row]:
         return _to_rows(rows)
 
 
-def get_published_gallery_images(album=None) -> list[_Row]:
+def get_published_gallery_images(album=None, limit=None) -> list[_Row]:
     with SessionLocal() as session:
         q = select(GalleryImage).where(
             GalleryImage.published == True,  # noqa: E712
@@ -658,7 +782,10 @@ def get_published_gallery_images(album=None) -> list[_Row]:
         )
         if album:
             q = q.where(GalleryImage.album == album)
-        rows = session.scalars(q.order_by(GalleryImage.uploaded_at.desc())).all()
+        q = q.order_by(GalleryImage.uploaded_at.desc())
+        if limit is not None:
+            q = q.limit(max(0, int(limit)))
+        rows = session.scalars(q).all()
         return _to_rows(rows)
 
 
@@ -685,14 +812,13 @@ def toggle_gallery_publish(image_id: int) -> None:
 
 
 def delete_gallery_image(image_id: int) -> Optional[_Row]:
-    """Soft-delete the gallery DB record; return filename/album for file deletion."""
+    """Delete the gallery record and return its file location."""
     actor = _actor_email()
     with SessionLocal() as session:
         row = session.get(GalleryImage, image_id)
         if row:
             result = _Row({"filename": row.filename, "album": row.album})
-            row.is_deleted = True
-            row.deleted_at = datetime.utcnow()
+            session.delete(row)
             session.commit()
             log_audit(actor, "delete", "gallery", image_id,
                       _audit_details(deleted_by=actor, filename=row.filename, album=row.album))
@@ -721,8 +847,19 @@ def get_website_settings() -> Optional[_Row]:
         return _to_row(row)
 
 
-def update_website_settings(site_name, hero_text, hero_subtext, about_text,
-                             contact_phone, contact_email, address) -> None:
+def update_website_settings(
+    site_name,
+    hero_text,
+    hero_subtext,
+    about_text,
+    contact_phone,
+    contact_email,
+    address,
+    facebook_url,
+    instagram_url,
+    youtube_url,
+    whatsapp_number,
+) -> None:
     actor = _actor_email()
     with SessionLocal() as session:
         row = session.scalar(select(WebsiteSettings).limit(1))
@@ -734,6 +871,10 @@ def update_website_settings(site_name, hero_text, hero_subtext, about_text,
             row.contact_phone = contact_phone
             row.contact_email = contact_email
             row.address = address
+            row.facebook_url = facebook_url
+            row.instagram_url = instagram_url
+            row.youtube_url = youtube_url
+            row.whatsapp_number = whatsapp_number
             row.updated_at = datetime.utcnow()
             row_id = row.id
         else:
@@ -741,6 +882,8 @@ def update_website_settings(site_name, hero_text, hero_subtext, about_text,
                 site_name=site_name, hero_text=hero_text, hero_subtext=hero_subtext,
                 about_text=about_text, contact_phone=contact_phone,
                 contact_email=contact_email, address=address,
+                facebook_url=facebook_url, instagram_url=instagram_url,
+                youtube_url=youtube_url, whatsapp_number=whatsapp_number,
             )
             session.add(new_row)
             session.flush()

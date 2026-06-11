@@ -80,6 +80,34 @@
             </div>
         </div>
 
+        <h3 style="margin: 25px 0 15px; color: #4a5568; font-size: 16px;"><i class="fas fa-share-alt"></i> Social Links</h3>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="facebook_url">Facebook URL</label>
+                <input type="url" id="facebook_url" name="facebook_url"
+                    value="{{ settings['facebook_url'] if settings and settings['facebook_url'] else '' }}"
+                    placeholder="https://facebook.com/your-page">
+            </div>
+            <div class="form-group">
+                <label for="instagram_url">Instagram URL</label>
+                <input type="url" id="instagram_url" name="instagram_url"
+                    value="{{ settings['instagram_url'] if settings and settings['instagram_url'] else '' }}"
+                    placeholder="https://instagram.com/your-page">
+            </div>
+            <div class="form-group">
+                <label for="youtube_url">YouTube URL</label>
+                <input type="url" id="youtube_url" name="youtube_url"
+                    value="{{ settings['youtube_url'] if settings and settings['youtube_url'] else '' }}"
+                    placeholder="https://youtube.com/@your-channel">
+            </div>
+            <div class="form-group">
+                <label for="whatsapp_number">WhatsApp Number <small style="color: #718096;">(Include country code)</small></label>
+                <input type="text" id="whatsapp_number" name="whatsapp_number"
+                    value="{{ settings['whatsapp_number'] if settings and settings['whatsapp_number'] else '' }}"
+                    placeholder="256759989861">
+            </div>
+        </div>
+
         <div style="margin-top: 25px;">
             <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Changes</button>
             <a href="{{ url_for('public.index') }}" target="_blank" class="btn btn-success"

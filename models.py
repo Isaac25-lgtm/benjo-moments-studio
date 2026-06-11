@@ -1,18 +1,15 @@
 """
 SQLAlchemy ORM models for Benjo Moments Photography System.
 
-These models mirror the existing SQLite schema exactly so that Alembic can
-generate a clean initial migration. Field types are chosen to work correctly
-on both SQLite (fallback) and PostgreSQL (production).
+These models define the PostgreSQL schema used locally and in production.
 
 DO NOT import this module before db.py — it depends on Base from here.
 """
-import secrets
-from datetime import datetime, date as date_type
+from datetime import datetime
 
 from sqlalchemy import (
-    Boolean, Column, Date, DateTime, ForeignKey,
-    Integer, Numeric, String, Text, func,
+    Boolean, CheckConstraint, Column, Date, DateTime, ForeignKey,
+    Index, Integer, Numeric, String, Text, func,
 )
 from sqlalchemy.orm import DeclarativeBase, relationship
 
@@ -52,12 +49,22 @@ class User(Base):
 # ---------------------------------------------------------------------------
 class Income(Base):
     __tablename__ = "income"
+    __table_args__ = (
+        CheckConstraint("amount > 0", name="ck_income_amount_positive"),
+        Index("ix_income_date", "date"),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     date = Column(Date, nullable=False)
     description = Column(Text, nullable=False)
     category = Column(String(100), nullable=False)
     amount = Column(Numeric(14, 2), nullable=False)
+    source_invoice_id = Column(
+        Integer,
+        ForeignKey("invoices.id"),
+        unique=True,
+        nullable=True,
+    )
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     # Soft delete
     is_deleted = Column(Boolean, nullable=False, default=False)
@@ -70,6 +77,7 @@ class Income(Base):
             "description": self.description,
             "category": self.category,
             "amount": float(self.amount),
+            "source_invoice_id": self.source_invoice_id,
             "created_at": self.created_at,
         }
 
@@ -79,6 +87,10 @@ class Income(Base):
 # ---------------------------------------------------------------------------
 class Expense(Base):
     __tablename__ = "expenses"
+    __table_args__ = (
+        CheckConstraint("amount > 0", name="ck_expenses_amount_positive"),
+        Index("ix_expenses_date", "date"),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     date = Column(Date, nullable=False)
@@ -106,6 +118,11 @@ class Expense(Base):
 # ---------------------------------------------------------------------------
 class Customer(Base):
     __tablename__ = "customers"
+    __table_args__ = (
+        CheckConstraint("total_amount > 0", name="ck_customers_total_positive"),
+        CheckConstraint("amount_paid >= 0", name="ck_customers_paid_nonnegative"),
+        CheckConstraint("amount_paid <= total_amount", name="ck_customers_paid_within_total"),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(255), nullable=False)
@@ -139,13 +156,22 @@ class Customer(Base):
 # ---------------------------------------------------------------------------
 class Invoice(Base):
     __tablename__ = "invoices"
+    __table_args__ = (
+        CheckConstraint("amount > 0", name="ck_invoices_amount_positive"),
+        CheckConstraint(
+            "status IN ('pending', 'paid', 'cancelled')",
+            name="ck_invoices_status",
+        ),
+        Index("ix_invoices_status", "status"),
+        Index("ix_invoices_customer_active", "customer_id", "is_deleted"),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     invoice_number = Column(String(50), unique=True, nullable=False)
     customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
     date = Column(Date, nullable=False)
     amount = Column(Numeric(14, 2), nullable=False)
-    status = Column(String(50), nullable=False, default="Pending")
+    status = Column(String(50), nullable=False, default="pending")
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     # Soft delete
     is_deleted = Column(Boolean, nullable=False, default=False)
@@ -171,6 +197,9 @@ class Invoice(Base):
 # ---------------------------------------------------------------------------
 class Asset(Base):
     __tablename__ = "assets"
+    __table_args__ = (
+        CheckConstraint("value > 0", name="ck_assets_value_positive"),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(255), nullable=False)
@@ -195,6 +224,10 @@ class Asset(Base):
 # ---------------------------------------------------------------------------
 class GalleryImage(Base):
     __tablename__ = "gallery"
+    __table_args__ = (
+        Index("ix_gallery_album_published", "album", "published"),
+        Index("ix_gallery_active", "is_deleted", "published", "album"),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     filename = Column(String(255), nullable=False)
@@ -231,6 +264,10 @@ class WebsiteSettings(Base):
     contact_phone = Column(String(100), nullable=True, default="0759989861 / 0778728089")
     contact_email = Column(String(255), nullable=True, default="info@benjomoments.com")
     address = Column(Text, nullable=True)
+    facebook_url = Column(String(500), nullable=True)
+    instagram_url = Column(String(500), nullable=True)
+    youtube_url = Column(String(500), nullable=True)
+    whatsapp_number = Column(String(30), nullable=True, default="256759989861")
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def as_dict(self):
@@ -243,6 +280,10 @@ class WebsiteSettings(Base):
             "contact_phone": self.contact_phone,
             "contact_email": self.contact_email,
             "address": self.address,
+            "facebook_url": self.facebook_url,
+            "instagram_url": self.instagram_url,
+            "youtube_url": self.youtube_url,
+            "whatsapp_number": self.whatsapp_number,
             "updated_at": self.updated_at,
         }
 
@@ -272,6 +313,9 @@ class HeroImage(Base):
 # ---------------------------------------------------------------------------
 class ContactMessage(Base):
     __tablename__ = "contact_messages"
+    __table_args__ = (
+        Index("ix_contact_messages_unread", "is_read", "created_at"),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(255), nullable=False)
@@ -300,6 +344,10 @@ class ContactMessage(Base):
 # ---------------------------------------------------------------------------
 class PricingPackage(Base):
     __tablename__ = "pricing_packages"
+    __table_args__ = (
+        CheckConstraint("price > 0", name="ck_pricing_price_positive"),
+        CheckConstraint("display_order >= 0", name="ck_pricing_order_nonnegative"),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(255), nullable=False)
@@ -334,6 +382,9 @@ class PricingPackage(Base):
 # ---------------------------------------------------------------------------
 class AuditLog(Base):
     __tablename__ = "audit_logs"
+    __table_args__ = (
+        Index("ix_audit_logs_created_at", "created_at"),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_email = Column(String(255), nullable=True)

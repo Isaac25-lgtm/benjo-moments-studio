@@ -5,40 +5,47 @@ Handles all admin dashboard functionality.
 import os
 import re
 import uuid
+import math
 from datetime import datetime
-from flask import Blueprint, abort, render_template, request, redirect, url_for, flash
-from werkzeug.utils import secure_filename
+from flask import Blueprint, abort, render_template, request, redirect, session, url_for, flash
 from auth import login_required
 import database
 import config
 from extensions import limiter
+from uploads import InvalidImageError, save_image, validate_image
 
 admin = Blueprint('admin', __name__, url_prefix='/admin')
 
-def allowed_file(filename):
-    """Check if file extension is allowed."""
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in config.ALLOWED_EXTENSIONS
+
+@admin.before_request
+def require_admin_role():
+    if "user_id" not in session:
+        flash("Please log in to access this page.", "warning")
+        return redirect(url_for("auth.login"))
+    if session.get("user_role") != "admin":
+        abort(403)
+
 
 def parse_positive_float(value):
     try:
         number = float(value)
     except (TypeError, ValueError):
         return None
-    return number if number > 0 else None
+    return number if math.isfinite(number) and number > 0 else None
 
 def parse_non_negative_float(value):
     try:
         number = float(value)
     except (TypeError, ValueError):
         return None
-    return number if number >= 0 else None
+    return number if math.isfinite(number) and number >= 0 else None
 
 def parse_non_negative_int(value):
     try:
         number = int(value)
     except (TypeError, ValueError):
         return None
-    return number if number >= 0 else None
+    return number if 0 <= number <= 2_147_483_647 else None
 
 def valid_date(date_string):
     if not date_string:
@@ -84,7 +91,7 @@ def add_income():
     """Add new income record."""
     date = request.form.get('date')
     description = request.form.get('description', '').strip()
-    category = request.form.get('category', '').strip()
+    category = request.form.get('category', '').strip()[:100]
     amount = parse_positive_float(request.form.get('amount'))
     
     if not valid_date(date):
@@ -105,7 +112,7 @@ def edit_income(id):
     """Edit income record."""
     date = request.form.get('date')
     description = request.form.get('description', '').strip()
-    category = request.form.get('category', '').strip()
+    category = request.form.get('category', '').strip()[:100]
     amount = parse_positive_float(request.form.get('amount'))
 
     if not valid_date(date):
@@ -115,8 +122,11 @@ def edit_income(id):
     elif amount is None:
         flash('Amount must be a positive number.', 'error')
     else:
-        database.update_income(id, date, description, category, amount)
-        flash('Income record updated successfully.', 'success')
+        try:
+            database.update_income(id, date, description, category, amount)
+            flash('Income record updated successfully.', 'success')
+        except ValueError as exc:
+            flash(str(exc), 'error')
 
     return redirect(url_for('admin.income'))
 
@@ -124,8 +134,11 @@ def edit_income(id):
 @login_required
 def delete_income(id):
     """Delete income record."""
-    database.delete_income(id)
-    flash('Income record deleted.', 'info')
+    try:
+        database.delete_income(id)
+        flash('Income record deleted.', 'info')
+    except ValueError as exc:
+        flash(str(exc), 'error')
     return redirect(url_for('admin.income'))
 
 # ============== EXPENSES ==============
@@ -143,7 +156,7 @@ def add_expense():
     """Add new expense record."""
     date = request.form.get('date')
     description = request.form.get('description', '').strip()
-    category = request.form.get('category', '').strip()
+    category = request.form.get('category', '').strip()[:100]
     amount = parse_positive_float(request.form.get('amount'))
     
     if not valid_date(date):
@@ -164,7 +177,7 @@ def edit_expense(id):
     """Edit expense record."""
     date = request.form.get('date')
     description = request.form.get('description', '').strip()
-    category = request.form.get('category', '').strip()
+    category = request.form.get('category', '').strip()[:100]
     amount = parse_positive_float(request.form.get('amount'))
 
     if not valid_date(date):
@@ -200,11 +213,11 @@ def customers():
 @login_required
 def add_customer():
     """Add new customer."""
-    name = request.form.get('name', '').strip()
-    service = request.form.get('service', '').strip()
+    name = request.form.get('name', '').strip()[:255]
+    service = request.form.get('service', '').strip()[:255]
     amount_paid = parse_non_negative_float(request.form.get('amount_paid', 0))
     total_amount = parse_positive_float(request.form.get('total_amount'))
-    contact = request.form.get('contact', '').strip()
+    contact = request.form.get('contact', '').strip()[:255]
     
     if not all([name, service]):
         flash('Name and service are required.', 'error')
@@ -224,11 +237,11 @@ def add_customer():
 @login_required
 def edit_customer(id):
     """Edit customer."""
-    name = request.form.get('name', '').strip()
-    service = request.form.get('service', '').strip()
+    name = request.form.get('name', '').strip()[:255]
+    service = request.form.get('service', '').strip()[:255]
     amount_paid = parse_non_negative_float(request.form.get('amount_paid', 0))
     total_amount = parse_positive_float(request.form.get('total_amount'))
-    contact = request.form.get('contact', '').strip()
+    contact = request.form.get('contact', '').strip()[:255]
 
     if not all([name, service]):
         flash('Name and service are required.', 'error')
@@ -239,8 +252,11 @@ def edit_customer(id):
     elif amount_paid > total_amount:
         flash('Amount paid cannot exceed total amount.', 'error')
     else:
-        database.update_customer(id, name, service, amount_paid, total_amount, contact)
-        flash('Customer updated successfully.', 'success')
+        try:
+            database.update_customer(id, name, service, amount_paid, total_amount, contact)
+            flash('Customer updated successfully.', 'success')
+        except ValueError as exc:
+            flash(str(exc), 'error')
 
     return redirect(url_for('admin.customers'))
 
@@ -281,6 +297,8 @@ def add_invoice():
         flash('Amount must be a positive number.', 'error')
     elif invoice_number and not re.match(r'^[A-Za-z0-9\-]+$', invoice_number):
         flash('Invoice number can only contain letters, numbers, and dashes.', 'error')
+    elif len(invoice_number) > 50:
+        flash('Invoice number must be 50 characters or fewer.', 'error')
     else:
         try:
             database.add_invoice(invoice_number, customer_id, date, amount)
@@ -296,8 +314,14 @@ def add_invoice():
 @login_required
 def mark_invoice_paid(id):
     """Mark invoice as paid."""
-    database.update_invoice_status(id, 'paid')  # lowercase canonical status
-    flash('Invoice marked as paid.', 'success')
+    try:
+        settled = database.mark_invoice_paid(id)
+        if settled:
+            flash('Invoice marked as paid and recorded as income.', 'success')
+        else:
+            flash('Invoice was already paid.', 'info')
+    except ValueError as exc:
+        flash(str(exc), 'error')
     return redirect(url_for('admin.invoices'))
 
 @admin.route('/invoices/delete/<int:id>', methods=['POST'])
@@ -320,10 +344,10 @@ def assets():
 @login_required
 def add_asset():
     """Add new asset."""
-    name = request.form.get('name', '').strip()
-    category = request.form.get('category', '').strip()
+    name = request.form.get('name', '').strip()[:255]
+    category = request.form.get('category', '').strip()[:100]
     value = parse_positive_float(request.form.get('value'))
-    supplier = request.form.get('supplier', '').strip()
+    supplier = request.form.get('supplier', '').strip()[:255]
     
     if not all([name, category]):
         flash('Name and category are required.', 'error')
@@ -339,10 +363,10 @@ def add_asset():
 @login_required
 def edit_asset(id):
     """Edit asset."""
-    name = request.form.get('name', '').strip()
-    category = request.form.get('category', '').strip()
+    name = request.form.get('name', '').strip()[:255]
+    category = request.form.get('category', '').strip()[:100]
     value = parse_positive_float(request.form.get('value'))
-    supplier = request.form.get('supplier', '').strip()
+    supplier = request.form.get('supplier', '').strip()[:255]
 
     if not all([name, category]):
         flash('Name and category are required.', 'error')
@@ -421,7 +445,7 @@ def upload_image():
     """Upload one or more images to gallery (batch upload up to 10)."""
     files = request.files.getlist('image')
     album = request.form.get('album', 'other')
-    caption = request.form.get('caption', '').strip()
+    caption = request.form.get('caption', '').strip()[:1000]
 
     if not files or all(f.filename == '' for f in files):
         flash('No image files selected.', 'error')
@@ -436,24 +460,30 @@ def upload_image():
     os.makedirs(upload_path, exist_ok=True)
 
     uploaded = 0
-    skipped = 0
+    errors = []
+    if len(files) > 10:
+        errors.append("Only the first 10 files were processed.")
+
     for file in files[:10]:  # Hard limit: max 10 per request
         if file.filename == '':
             continue
-        if file and allowed_file(file.filename):
-            original_name = secure_filename(file.filename)
-            extension = original_name.rsplit('.', 1)[1].lower()
+        try:
+            extension = validate_image(file)
             filename = f"{uuid.uuid4().hex}.{extension}"
-            file.save(os.path.join(upload_path, filename))
-            database.add_gallery_image(filename, album, caption)
+            save_image(file, upload_path, filename)
+            try:
+                database.add_gallery_image(filename, album, caption)
+            except Exception:
+                os.remove(os.path.join(upload_path, filename))
+                raise
             uploaded += 1
-        else:
-            skipped += 1
+        except InvalidImageError as exc:
+            errors.append(f"{file.filename}: {exc}")
 
     if uploaded:
         flash(f'{uploaded} image{"s" if uploaded > 1 else ""} uploaded successfully.', 'success')
-    if skipped:
-        flash(f'{skipped} file{"s" if skipped > 1 else ""} skipped (invalid type).', 'warning')
+    for error in errors:
+        flash(error, 'warning')
 
     return redirect(url_for('admin.gallery_manager'))
 
@@ -468,10 +498,19 @@ def toggle_image(id):
 @admin.route('/gallery/delete/<int:id>', methods=['POST'])
 @login_required
 def delete_image(id):
-    """Soft-delete image from gallery (DB only — file kept for restore)."""
-    database.delete_gallery_image(id)
-    # File is intentionally NOT removed from disk so that restore_gallery_image()
-    # can bring the record back and the file is still accessible.
+    """Delete an image record and its file."""
+    image = database.delete_gallery_image(id)
+    if image:
+        file_path = os.path.join(
+            config.UPLOAD_FOLDER,
+            config.ALBUM_FOLDERS[image['album']],
+            image['filename'],
+        )
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        except OSError:
+            flash('Image record deleted, but the file could not be removed.', 'warning')
     flash('Image deleted.', 'info')
     return redirect(url_for('admin.gallery_manager'))
 
@@ -488,13 +527,17 @@ def website_settings():
 @login_required
 def update_settings():
     """Update website settings."""
-    site_name = request.form.get('site_name', '').strip()
+    site_name = request.form.get('site_name', '').strip()[:255]
     hero_text = request.form.get('hero_text', '').strip()
     hero_subtext = request.form.get('hero_subtext', '').strip()
     about_text = request.form.get('about_text', '').strip()
-    contact_phone = request.form.get('contact_phone', '').strip()
-    contact_email = request.form.get('contact_email', '').strip()
+    contact_phone = request.form.get('contact_phone', '').strip()[:100]
+    contact_email = request.form.get('contact_email', '').strip().lower()[:255]
     address = request.form.get('address', '').strip()
+    facebook_url = request.form.get('facebook_url', '').strip()
+    instagram_url = request.form.get('instagram_url', '').strip()
+    youtube_url = request.form.get('youtube_url', '').strip()
+    whatsapp_number = re.sub(r'\D', '', request.form.get('whatsapp_number', ''))
 
     if not site_name:
         flash('Site name is required.', 'error')
@@ -504,7 +547,27 @@ def update_settings():
         flash('Please provide a valid contact email address.', 'error')
         return redirect(url_for('admin.website_settings'))
 
-    database.update_website_settings(site_name, hero_text, hero_subtext, about_text, contact_phone, contact_email, address)
+    social_urls = [facebook_url, instagram_url, youtube_url]
+    if any(value and not value.startswith('https://') for value in social_urls):
+        flash('Social media links must start with https://.', 'error')
+        return redirect(url_for('admin.website_settings'))
+    if whatsapp_number and not 8 <= len(whatsapp_number) <= 15:
+        flash('WhatsApp number must contain 8 to 15 digits, including country code.', 'error')
+        return redirect(url_for('admin.website_settings'))
+
+    database.update_website_settings(
+        site_name,
+        hero_text,
+        hero_subtext,
+        about_text,
+        contact_phone,
+        contact_email,
+        address,
+        facebook_url,
+        instagram_url,
+        youtube_url,
+        whatsapp_number,
+    )
     flash('Website settings updated successfully.', 'success')
     
     return redirect(url_for('admin.website_settings'))
@@ -519,25 +582,29 @@ def upload_hero_image():
         return redirect(url_for('admin.website_settings'))
 
     file = request.files['hero_image']
-    display_order = parse_non_negative_int(request.form.get('display_order', 0)) or 0
+    display_order = parse_non_negative_int(request.form.get('display_order', 0))
+    if display_order is None:
+        flash('Display order must be a non-negative whole number.', 'error')
+        return redirect(url_for('admin.website_settings'))
 
     if file.filename == '':
         flash('No file selected.', 'error')
         return redirect(url_for('admin.website_settings'))
 
-    if file and allowed_file(file.filename):
-        original_name = secure_filename(file.filename)
-        extension = original_name.rsplit('.', 1)[1].lower()
+    try:
+        extension = validate_image(file)
         filename = f"{uuid.uuid4().hex}.{extension}"
 
         hero_folder = os.path.join(config.UPLOAD_FOLDER, 'hero')
-        os.makedirs(hero_folder, exist_ok=True)
-
-        file.save(os.path.join(hero_folder, filename))
-        database.add_hero_image(filename, display_order)
+        save_image(file, hero_folder, filename)
+        try:
+            database.add_hero_image(filename, display_order)
+        except Exception:
+            os.remove(os.path.join(hero_folder, filename))
+            raise
         flash('Hero image uploaded successfully.', 'success')
-    else:
-        flash('Invalid file type. Allowed: png, jpg, jpeg, gif, webp', 'error')
+    except InvalidImageError as exc:
+        flash(str(exc), 'error')
 
     return redirect(url_for('admin.website_settings'))
 
@@ -595,11 +662,11 @@ def pricing():
 def add_pricing():
     """Add a new pricing package."""
     if request.method == 'POST':
-        name = request.form.get('name', '').strip()
+        name = request.form.get('name', '').strip()[:255]
         description = request.form.get('description', '').strip()
         price = parse_positive_float(request.form.get('price'))
-        price_label = request.form.get('price_label', '/session')
-        icon = request.form.get('icon', 'fa-camera')
+        price_label = request.form.get('price_label', '/session').strip()[:50]
+        icon = request.form.get('icon', 'fa-camera').strip()[:100]
         features = request.form.get('features', '')
         is_featured = 1 if request.form.get('is_featured') else 0
         display_order = parse_non_negative_int(request.form.get('display_order', 0))
@@ -638,11 +705,11 @@ def edit_pricing(id):
         abort(404)
     
     if request.method == 'POST':
-        name = request.form.get('name', '').strip()
+        name = request.form.get('name', '').strip()[:255]
         description = request.form.get('description', '').strip()
         price = parse_positive_float(request.form.get('price'))
-        price_label = request.form.get('price_label', '/session')
-        icon = request.form.get('icon', 'fa-camera')
+        price_label = request.form.get('price_label', '/session').strip()[:50]
+        icon = request.form.get('icon', 'fa-camera').strip()[:100]
         features = request.form.get('features', '')
         is_featured = 1 if request.form.get('is_featured') else 0
         display_order = parse_non_negative_int(request.form.get('display_order', 0))

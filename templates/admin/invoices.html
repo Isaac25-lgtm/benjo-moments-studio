@@ -73,17 +73,22 @@
                 <td>{{ r['date'] }}</td>
                 <td>UGX {{ "{:,.0f}".format(r['amount']) }}</td>
                 <td>
-                    {% if r['status'] == 'Paid' %}
+                    {% if r['status'] == 'paid' %}
                     <span class="badge badge-success">Paid ✓</span>
+                    {% elif r['status'] == 'cancelled' %}
+                    <span class="badge badge-danger">Cancelled</span>
                     {% else %}
                     <span class="badge badge-warning">Pending</span>
                     {% endif %}
                 </td>
                 <td>
-                    {% if r['status'] != 'Paid' %}
+                    {% if r['status'] == 'pending' %}
                     <form action="{{ url_for('admin.mark_invoice_paid', id=r['id']) }}" method="POST" style="display:inline;">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-success btn-sm"><i class="fas fa-check"></i> Mark Paid</button>
+                        <button type="submit" class="btn btn-success btn-sm"
+                            onclick="return confirm('Mark this invoice paid and record it as income?')">
+                            <i class="fas fa-check"></i> Mark Paid
+                        </button>
                     </form>
                     {% endif %}
                     <form action="{{ url_for('admin.delete_invoice', id=r['id']) }}" method="POST" style="display:inline;"

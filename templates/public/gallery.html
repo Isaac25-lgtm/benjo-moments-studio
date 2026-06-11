@@ -157,7 +157,7 @@
         <div class="gallery-grid">
             {% for img in images %}
             <div class="gallery-item">
-                <img src="{{ url_for('static', filename='uploads/' + img['album'] + '/' + img['filename']) }}"
+                <img src="{{ url_for('public.uploaded_file', album=img['album'], filename=img['filename']) }}"
                     alt="{{ img['caption'] or 'Gallery image' }}">
                 <div class="gallery-overlay">
                     <h3>{{ img['caption'] if img['caption'] else 'Beautiful Moment' }}</h3>

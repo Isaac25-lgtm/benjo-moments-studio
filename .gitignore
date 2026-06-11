@@ -27,6 +27,7 @@ Thumbs.db
 # Uploads (user content)
 static/uploads/*
 !static/uploads/.gitkeep
+instance/
 
 # Logs
 *.log

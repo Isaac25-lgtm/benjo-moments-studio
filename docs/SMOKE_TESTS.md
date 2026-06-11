@@ -165,6 +165,6 @@ Mark each ✅ pass / ❌ fail with notes.
 | ENV1 | `SECRET_KEY` not set in production | App raises `RuntimeError` at startup |
 | ENV2 | `TEST_AUTH_MODE=true` | Any email/password logs in |
 | ENV3 | `TEST_AUTH_MODE=false` | Only valid DB users log in |
-| ENV4 | `DATABASE_URL` set to Postgres | App connects to Postgres |
-| ENV5 | `DATABASE_URL` unset (local dev) | Falls back to SQLite (if `USE_SQLITE_FALLBACK=true`) |
+| ENV4 | `DATABASE_URL` set to PostgreSQL | App connects to PostgreSQL |
+| ENV5 | `DATABASE_URL` unset | App raises `RuntimeError` at startup |
 | ENV6 | `alembic upgrade head` on fresh DB | All tables created successfully |

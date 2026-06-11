@@ -44,7 +44,7 @@ def login():
         return redirect(url_for("admin.dashboard"))
 
     if request.method == "POST":
-        email = request.form.get("email", "").strip()
+        email = request.form.get("email", "").strip().lower()[:255]
         password = request.form.get("password", "")
 
         if not email or not password:

@@ -70,7 +70,7 @@
         style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; margin-top: 20px;">
         {% for img in images %}
         <div style="background: #f7fafc; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-            <img src="{{ url_for('static', filename='uploads/' + img['album'] + '/' + img['filename']) }}"
+            <img src="{{ url_for('public.uploaded_file', album=img['album'], filename=img['filename']) }}"
                 alt="{{ img['caption'] or 'Gallery image' }}"
                 style="width: 100%; height: 150px; object-fit: cover; object-position: center 20%;">
             <div style="padding: 15px;">
@@ -93,7 +93,7 @@
                         </button>
                     </form>
                     <form action="{{ url_for('admin.delete_image', id=img['id']) }}" method="POST" style="display:inline;"
-                        onsubmit="return confirm('Are you sure you want to delete this image? This cannot be undone.')">
+                        onsubmit="return confirm('Delete this image permanently?')">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button>
                     </form>

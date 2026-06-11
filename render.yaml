@@ -1,21 +1,30 @@
-# Render.yaml — Benjo Moments Photography System
-# Deploys to Render with Neon PostgreSQL for persistence.
+# Render Blueprint for a single-instance Benjo Moments deployment.
 
 services:
   - type: web
     name: benjo-moments-studio
     runtime: python
-    buildCommand: pip install -r requirements.txt
+    region: frankfurt
+    plan: starter
+    numInstances: 1
+    buildCommand: python -m pip install --no-cache-dir -r requirements.txt && python -m compileall -q .
     # -----------------------------------------------------------------------
     # preDeployCommand: runs ONCE before the new instance starts serving.
     # Applies any pending Alembic migrations safely on each deploy.
     # -----------------------------------------------------------------------
-    preDeployCommand: alembic upgrade head
-    startCommand: gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --keep-alive 5 --log-level info
-    autoDeploy: true
+    preDeployCommand: python -m alembic upgrade head
+    startCommand: gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 --graceful-timeout 30 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100 --access-logfile - --error-logfile - --log-level info
+    autoDeployTrigger: commit
+    maxShutdownDelaySeconds: 30
     envVars:
       - key: PYTHON_VERSION
-        value: "3.12.0"
+        value: "3.12.13"
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: PYTHONDONTWRITEBYTECODE
+        value: "1"
+      - key: MALLOC_ARENA_MAX
+        value: "2"
       - key: SECRET_KEY
         generateValue: true
       - key: FLASK_ENV
@@ -26,6 +35,12 @@ services:
         sync: false
       - key: TEST_AUTH_MODE
         value: "false"
+      - key: DB_POOL_SIZE
+        value: "5"
+      - key: DB_MAX_OVERFLOW
+        value: "2"
+      - key: DB_POOL_TIMEOUT
+        value: "15"
       # Optional: set TEST_PIN to restrict test-mode logins
       # - key: TEST_PIN
       #   sync: false
@@ -36,11 +51,8 @@ services:
         sync: false
       - key: DEFAULT_ADMIN_PASSWORD
         sync: false
-      # Optional: Redis for persistent rate limiting across workers
-      # - key: REDIS_URL
-      #   sync: false
     disk:
       name: benjo-moments-data
       mountPath: /opt/render/project/data
       sizeGB: 1
-    healthCheckPath: /__version
+    healthCheckPath: /healthz

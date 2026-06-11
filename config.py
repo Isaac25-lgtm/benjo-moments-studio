@@ -5,11 +5,15 @@ All sensitive values must come from environment variables in production.
 import os
 import logging
 import secrets
+from pathlib import Path
+
+from dotenv import load_dotenv
 
 # ---------------------------------------------------------------------------
 # Base directory
 # ---------------------------------------------------------------------------
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env")
 
 # ---------------------------------------------------------------------------
 # Environment detection
@@ -33,14 +37,9 @@ logger = logging.getLogger("benjo_moments")
 # ---------------------------------------------------------------------------
 # TEST_AUTH_MODE=true  → any non-empty email/password logs in (dev/demo only)
 # TEST_AUTH_MODE=false → validate credentials against DB (production)
-TEST_AUTH_MODE = os.environ.get("TEST_AUTH_MODE", "true").lower() in ("1", "true", "yes")
-
-# USE_SQLITE_FALLBACK=true → fall back to SQLite when DATABASE_URL is unset
-# Only honoured in non-production environments.
-USE_SQLITE_FALLBACK = (
-    not IS_PRODUCTION
-    and os.environ.get("USE_SQLITE_FALLBACK", "true").lower() in ("1", "true", "yes")
-)
+TEST_AUTH_MODE = os.environ.get("TEST_AUTH_MODE", "false").lower() in ("1", "true", "yes")
+if IS_PRODUCTION and TEST_AUTH_MODE:
+    raise RuntimeError("TEST_AUTH_MODE must be false in production.")
 
 # ---------------------------------------------------------------------------
 # Secret key
@@ -59,26 +58,33 @@ if not SECRET_KEY:
 # Database
 # ---------------------------------------------------------------------------
 DATABASE_URL = os.environ.get("DATABASE_URL")
-
-# Legacy SQLite path — used only when USE_SQLITE_FALLBACK is active
-DATABASE_PATH = os.environ.get("DATABASE_PATH", os.path.join(BASE_DIR, "database.db"))
-
 if not DATABASE_URL:
-    if IS_PRODUCTION:
-        raise RuntimeError(
-            "DATABASE_URL environment variable must be set in production. "
-            "Set it to your Neon Postgres connection string."
-        )
-    if USE_SQLITE_FALLBACK:
-        DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
-        logger.warning("DATABASE_URL not set — using SQLite fallback at %s", DATABASE_PATH)
+    raise RuntimeError(
+        "DATABASE_URL is required. Benjo Moments supports PostgreSQL only. "
+        "Set it in .env locally and in the Render dashboard for production."
+    )
+
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
+elif DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
+
+if not DATABASE_URL.startswith("postgresql+psycopg2://"):
+    raise RuntimeError("DATABASE_URL must be a PostgreSQL psycopg2 connection URL.")
+
+DB_POOL_SIZE = int(os.environ.get("DB_POOL_SIZE", "5"))
+DB_MAX_OVERFLOW = int(os.environ.get("DB_MAX_OVERFLOW", "2"))
+DB_POOL_TIMEOUT = int(os.environ.get("DB_POOL_TIMEOUT", "15"))
+DB_POOL_RECYCLE = int(os.environ.get("DB_POOL_RECYCLE", "300"))
+DB_CONNECT_TIMEOUT = int(os.environ.get("DB_CONNECT_TIMEOUT", "10"))
 
 # ---------------------------------------------------------------------------
 # File uploads
 # ---------------------------------------------------------------------------
-UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", os.path.join(BASE_DIR, "static", "uploads"))
-ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
+UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", str(BASE_DIR / "instance" / "uploads"))
 MAX_CONTENT_LENGTH = 100 * 1024 * 1024  # 100 MB (supports batch uploads of up to 10 images)
+MAX_IMAGE_FILE_SIZE = 10 * 1024 * 1024
+MAX_IMAGE_PIXELS = 40_000_000
 
 # ---------------------------------------------------------------------------
 # Session / CSRF
