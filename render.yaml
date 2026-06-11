@@ -4,7 +4,7 @@ services:
   - type: web
     name: benjo-moments-studio
     runtime: python
-    region: frankfurt
+    region: virginia
     plan: starter
     numInstances: 1
     buildCommand: python -m pip install --no-cache-dir -r requirements.txt && python -m compileall -q .

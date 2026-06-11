@@ -45,7 +45,7 @@ PostgreSQL is mandatory. The application does not fall back to SQLite.
 The included `render.yaml` configures:
 
 - `python -m alembic upgrade head` before each deployment
-- A paid Starter service in Frankfurt with exactly one instance
+- A paid Starter service in Virginia with exactly one instance
 - One Gunicorn worker with four threads
 - A five-connection PostgreSQL pool with limited overflow
 - A persistent disk at `/opt/render/project/data`
@@ -53,8 +53,8 @@ The included `render.yaml` configures:
 
 Set these values in Render:
 
-- `DATABASE_URL`: hosted PostgreSQL connection URL; use a Frankfurt database
-  when possible and include `sslmode=require` for public connections
+- `DATABASE_URL`: hosted PostgreSQL connection URL; use a database in the same
+  region when possible and include `sslmode=require` for public connections
 - `DEFAULT_ADMIN_EMAIL`
 - `DEFAULT_ADMIN_PASSWORD`
 

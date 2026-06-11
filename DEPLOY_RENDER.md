@@ -6,8 +6,8 @@ Free web services do not support persistent disks.
 
 ## Required Environment Variables
 
-- `DATABASE_URL`: PostgreSQL URL using psycopg2. Prefer a database in Frankfurt
-  and include `sslmode=require` when using a public connection.
+- `DATABASE_URL`: PostgreSQL URL using psycopg2. Keep the database close to the
+  Render service and include `sslmode=require` for a public connection.
 - `DEFAULT_ADMIN_EMAIL`: initial manager email
 - `DEFAULT_ADMIN_PASSWORD`: strong initial manager password
 
