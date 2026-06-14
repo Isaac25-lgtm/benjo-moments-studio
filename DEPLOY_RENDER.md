@@ -9,7 +9,7 @@ Free web services do not support persistent disks.
 - `DATABASE_URL`: PostgreSQL URL using psycopg2. Keep the database close to the
   Render service and include `sslmode=require` for a public connection.
 - `DEFAULT_ADMIN_EMAIL`: authoritative manager email
-- `DEFAULT_ADMIN_PASSWORD`: authoritative manager password, at least 12 characters
+- `DEFAULT_ADMIN_PASSWORD`: authoritative manager password
 
 Render generates `SECRET_KEY`. `TEST_AUTH_MODE` must remain `false`.
 At application startup, these credentials are synchronized to the database and

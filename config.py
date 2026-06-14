@@ -156,8 +156,6 @@ if IS_PRODUCTION:
         raise RuntimeError("DEFAULT_ADMIN_EMAIL must be a valid email address in production.")
     if not DEFAULT_ADMIN_PASSWORD:
         raise RuntimeError("DEFAULT_ADMIN_PASSWORD must be set in production.")
-    if len(DEFAULT_ADMIN_PASSWORD) < 12:
-        raise RuntimeError("DEFAULT_ADMIN_PASSWORD must be at least 12 characters in production.")
 
 DEFAULT_ADMIN_EMAIL = DEFAULT_ADMIN_EMAIL.strip().lower()
 ADMIN_CREDENTIAL_VERSION = hmac.new(
