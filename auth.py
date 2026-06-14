@@ -4,7 +4,7 @@ Handles login, logout, and session protection.
 
 TEST_AUTH_MODE=true  → any non-empty email/password accepted (dev/demo).
   If TEST_PIN env var is set, password must equal TEST_PIN.
-TEST_AUTH_MODE=false → credentials validated against the users table (production).
+TEST_AUTH_MODE=false → only environment-managed admin credentials work.
 
 Phase 7: rate limit applied on login; Phase 8: permanent session + TEST_PIN.
 """
@@ -30,6 +30,13 @@ def login_required(f):
     def decorated_function(*args, **kwargs):
         if "user_id" not in session:
             flash("Please log in to access this page.", "warning")
+            return redirect(url_for("auth.login"))
+        if not config.TEST_AUTH_MODE and (
+            session.get("user_email", "").strip().lower() != config.DEFAULT_ADMIN_EMAIL
+            or session.get("auth_version") != config.ADMIN_CREDENTIAL_VERSION
+        ):
+            session.clear()
+            flash("Your administrator credentials changed. Please log in again.", "warning")
             return redirect(url_for("auth.login"))
         return f(*args, **kwargs)
     return decorated_function
@@ -71,14 +78,17 @@ def login():
             session["user_name"] = display_name
             session["user_email"] = email
             session["user_role"] = "admin"
+            session["auth_version"] = config.ADMIN_CREDENTIAL_VERSION
             session["_csrf_token"] = secrets.token_urlsafe(32)
             flash(f"Welcome, {display_name}! (Test mode — any credentials accepted)", "success")
             return redirect(url_for("admin.dashboard"))
         else:
             # -------------------------------------------------------------------
-            # PRODUCTION MODE: validate against DB with Werkzeug password hash
+            # PRODUCTION MODE: accept only the environment-managed administrator.
             # -------------------------------------------------------------------
-            user = database.get_user_by_email(email)
+            user = None
+            if email == config.DEFAULT_ADMIN_EMAIL:
+                user = database.get_user_by_email(email)
             if user and check_password_hash(user["password_hash"], password):
                 session.clear()
                 session.permanent = True
@@ -86,6 +96,7 @@ def login():
                 session["user_name"] = user["name"]
                 session["user_email"] = user["email"]
                 session["user_role"] = user.get("role", "admin")
+                session["auth_version"] = config.ADMIN_CREDENTIAL_VERSION
                 session["_csrf_token"] = secrets.token_urlsafe(32)
                 flash(f"Welcome back, {user['name']}!", "success")
                 return redirect(url_for("admin.dashboard"))

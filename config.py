@@ -5,6 +5,8 @@ All sensitive values must come from environment variables in production.
 import os
 import logging
 import secrets
+import hashlib
+import hmac
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -13,7 +15,8 @@ from dotenv import load_dotenv
 # Base directory
 # ---------------------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent
-load_dotenv(BASE_DIR / ".env")
+if os.environ.get("FLASK_ENV", "development").lower() != "production":
+    load_dotenv(BASE_DIR / ".env")
 
 # ---------------------------------------------------------------------------
 # Environment detection
@@ -36,7 +39,7 @@ logger = logging.getLogger("benjo_moments")
 # Feature flags
 # ---------------------------------------------------------------------------
 # TEST_AUTH_MODE=true  → any non-empty email/password logs in (dev/demo only)
-# TEST_AUTH_MODE=false → validate credentials against DB (production)
+# TEST_AUTH_MODE=false → use the environment-managed admin (production)
 TEST_AUTH_MODE = os.environ.get("TEST_AUTH_MODE", "false").lower() in ("1", "true", "yes")
 if IS_PRODUCTION and TEST_AUTH_MODE:
     raise RuntimeError("TEST_AUTH_MODE must be false in production.")
@@ -140,10 +143,25 @@ ALBUM_FOLDERS = {
 }
 
 # ---------------------------------------------------------------------------
-# Default admin credentials (env-driven; only used when TEST_AUTH_MODE=false)
+# Authoritative admin credentials
 # ---------------------------------------------------------------------------
 DEFAULT_ADMIN_EMAIL = os.environ.get("DEFAULT_ADMIN_EMAIL", "admin@benjomoments.com")
 DEFAULT_ADMIN_PASSWORD = os.environ.get("DEFAULT_ADMIN_PASSWORD")
 if not DEFAULT_ADMIN_PASSWORD and not IS_PRODUCTION:
     DEFAULT_ADMIN_PASSWORD = "admin123"
 DEFAULT_ADMIN_NAME = os.environ.get("DEFAULT_ADMIN_NAME", "Admin User")
+
+if IS_PRODUCTION:
+    if not DEFAULT_ADMIN_EMAIL or "@" not in DEFAULT_ADMIN_EMAIL:
+        raise RuntimeError("DEFAULT_ADMIN_EMAIL must be a valid email address in production.")
+    if not DEFAULT_ADMIN_PASSWORD:
+        raise RuntimeError("DEFAULT_ADMIN_PASSWORD must be set in production.")
+    if len(DEFAULT_ADMIN_PASSWORD) < 12:
+        raise RuntimeError("DEFAULT_ADMIN_PASSWORD must be at least 12 characters in production.")
+
+DEFAULT_ADMIN_EMAIL = DEFAULT_ADMIN_EMAIL.strip().lower()
+ADMIN_CREDENTIAL_VERSION = hmac.new(
+    SECRET_KEY.encode("utf-8"),
+    f"{DEFAULT_ADMIN_EMAIL}\0{DEFAULT_ADMIN_PASSWORD or ''}".encode("utf-8"),
+    hashlib.sha256,
+).hexdigest()

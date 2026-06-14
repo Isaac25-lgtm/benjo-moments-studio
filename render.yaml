@@ -45,11 +45,13 @@ services:
       #   sync: false
       - key: UPLOAD_FOLDER
         value: /opt/render/project/data/uploads
-      # Set both in Render dashboard — do NOT hardcode credentials
+      # These are the authoritative production login credentials.
       - key: DEFAULT_ADMIN_EMAIL
         sync: false
       - key: DEFAULT_ADMIN_PASSWORD
         sync: false
+      - key: DEFAULT_ADMIN_NAME
+        value: Benjo Admin
     disk:
       name: benjo-moments-data
       mountPath: /opt/render/project/data

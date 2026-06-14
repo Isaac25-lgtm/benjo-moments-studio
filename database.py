@@ -8,7 +8,7 @@ SQLAlchemy implementation in database_sa.
 from database_sa import *  # noqa: F401, F403 — intentional re-export
 from database_sa import (  # explicit re-export for IDEs
     init_db,
-    create_default_admin,
+    synchronize_environment_admin,
     init_default_settings,
     create_default_pricing_packages,
     get_user_by_email,

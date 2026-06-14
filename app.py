@@ -120,7 +120,7 @@ def create_app():
         database.init_default_settings()
         database.create_default_pricing_packages()
         if not config.TEST_AUTH_MODE:
-            database.create_default_admin()
+            database.synchronize_environment_admin()
 
     # -----------------------------------------------------------------------
     # CSRF token for Jinja templates

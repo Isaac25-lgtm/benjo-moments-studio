@@ -19,7 +19,7 @@ from typing import Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
-from werkzeug.security import generate_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 
 import config
 from db import SessionLocal
@@ -141,21 +141,51 @@ def init_db():
     pass
 
 
-def create_default_admin():
-    """Create a seeded admin user if TEST_AUTH_MODE is off and no users exist."""
+def synchronize_environment_admin():
+    """Make environment credentials the single authoritative admin login."""
     if not config.DEFAULT_ADMIN_PASSWORD:
-        return
+        raise RuntimeError("DEFAULT_ADMIN_PASSWORD is required to synchronize the admin.")
+
+    configured_email = config.DEFAULT_ADMIN_EMAIL
     with SessionLocal() as session:
-        exists = session.scalar(select(func.count()).select_from(User))
-        if exists == 0:
-            session.add(User(
+        users = session.scalars(select(User).order_by(User.id).with_for_update()).all()
+        configured_user = next(
+            (user for user in users if user.email.strip().lower() == configured_email),
+            None,
+        )
+
+        if configured_user is None:
+            configured_user = User(
                 name=config.DEFAULT_ADMIN_NAME,
-                email=config.DEFAULT_ADMIN_EMAIL.strip().lower(),
+                email=configured_email,
                 password_hash=generate_password_hash(config.DEFAULT_ADMIN_PASSWORD),
                 role="admin",
-            ))
-            session.commit()
-            logger.info("Default admin user created: %s", config.DEFAULT_ADMIN_EMAIL)
+            )
+            session.add(configured_user)
+        else:
+            configured_user.name = config.DEFAULT_ADMIN_NAME
+            configured_user.email = configured_email
+            configured_user.role = "admin"
+            if not check_password_hash(
+                configured_user.password_hash,
+                config.DEFAULT_ADMIN_PASSWORD,
+            ):
+                configured_user.password_hash = generate_password_hash(
+                    config.DEFAULT_ADMIN_PASSWORD
+                )
+
+        removed = 0
+        for user in users:
+            if user is not configured_user:
+                session.delete(user)
+                removed += 1
+
+        session.commit()
+        logger.info(
+            "Environment-managed admin synchronized: %s | removed_accounts=%s",
+            configured_email,
+            removed,
+        )
 
 
 def init_default_settings():

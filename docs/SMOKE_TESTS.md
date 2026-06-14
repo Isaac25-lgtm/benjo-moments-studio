@@ -30,8 +30,8 @@ Mark each ✅ pass / ❌ fail with notes.
 | A1 | `/login` GET | GET | Login form renders |
 | A2 | `/admin/login` GET | GET | Same login form (alias route) |
 | A3 | Login with any email+pass (`TEST_AUTH_MODE=true`) | POST | Redirect to `/admin/` dashboard |
-| A4 | Login with valid credentials (`TEST_AUTH_MODE=false`) | POST | Redirect to `/admin/` dashboard |
-| A5 | Login with wrong password (`TEST_AUTH_MODE=false`) | POST | Flash "Invalid email or password" |
+| A4 | Login with environment credentials (`TEST_AUTH_MODE=false`) | POST | Redirect to `/admin/` dashboard |
+| A5 | Login with any other email/password (`TEST_AUTH_MODE=false`) | POST | Flash "Invalid email or password" |
 | A6 | `/admin/` without session | GET | Redirect to `/login` |
 | A7 | `/logout` | POST | Session cleared, redirect to login |
 
@@ -164,7 +164,7 @@ Mark each ✅ pass / ❌ fail with notes.
 |---|-------|----------|
 | ENV1 | `SECRET_KEY` not set in production | App raises `RuntimeError` at startup |
 | ENV2 | `TEST_AUTH_MODE=true` | Any email/password logs in |
-| ENV3 | `TEST_AUTH_MODE=false` | Only valid DB users log in |
+| ENV3 | `TEST_AUTH_MODE=false` | Only `DEFAULT_ADMIN_EMAIL` and `DEFAULT_ADMIN_PASSWORD` log in |
 | ENV4 | `DATABASE_URL` set to PostgreSQL | App connects to PostgreSQL |
 | ENV5 | `DATABASE_URL` unset | App raises `RuntimeError` at startup |
 | ENV6 | `alembic upgrade head` on fresh DB | All tables created successfully |
