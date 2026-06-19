@@ -46,14 +46,23 @@ class ReleaseSmokeTests(unittest.TestCase):
             return session["_csrf_token"]
 
     def test_public_and_admin_pages(self):
-        for path in (
-            "/", "/gallery?q=wedding", "/services", "/about", "/contact",
-            "/client-gallery", "/healthz", "/admin/", "/admin/users",
-            "/admin/services", "/admin/client-collections", "/admin/expenses",
-            "/admin/customers", "/admin/assets", "/admin/settings",
-        ):
+        for path in ("/", "/gallery?q=wedding", "/services", "/about", "/contact", "/client-gallery", "/healthz"):
             with self.subTest(path=path):
                 self.assertEqual(self.client.get(path).status_code, 200)
+        for path in (
+            "/admin/", "/admin/guide", "/admin/income", "/admin/expenses",
+            "/admin/invoices", "/admin/customers", "/admin/assets", "/admin/reports",
+            "/admin/client-collections", "/admin/messages", "/admin/gallery",
+            "/admin/services", "/admin/pricing", "/admin/pricing/add",
+            "/admin/settings", "/admin/users",
+        ):
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)
+                self.assertIn(b"Page guide", response.data)
+        guide = self.client.get("/admin/guide")
+        self.assertIn(b"Deliver client photos", guide.data)
+        self.assertIn(b"Weekly or monthly review", guide.data)
         self.assertEqual(self.client.post("/logout").status_code, 400)
 
     def test_multi_admin_equal_access(self):
@@ -152,6 +161,9 @@ class ReleaseSmokeTests(unittest.TestCase):
             )
             self.assertEqual(admin_directory.status_code, 200)
             self.assertIn(f"Smoke Collection {self.suffix}".encode(), admin_directory.data)
+            detail = self.client.get(f"/admin/client-collections/{collection_id}")
+            self.assertEqual(detail.status_code, 200)
+            self.assertIn(b"Collection setup guide", detail.data)
 
             visitor = self.app.test_client()
             cover = visitor.get(f"/client-gallery/{code}/cover")

@@ -145,6 +145,11 @@ def create_app():
 
     app.jinja_env.globals["whatsapp_url"] = whatsapp_url
 
+    @app.context_processor
+    def inject_manager_guide():
+        from admin_guides import get_page_guide
+        return {"page_guide": get_page_guide(request.endpoint)}
+
     # -----------------------------------------------------------------------
     # CSRF protection middleware
     # -----------------------------------------------------------------------

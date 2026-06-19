@@ -1,0 +1,33 @@
+{% extends 'admin/base.html' %}
+{% block title %}Manager Guide{% endblock %}
+{% block page_title %}Manager Guide{% endblock %}
+{% block content %}
+<section class="manager-guide-intro">
+    <div>
+        <p class="guide-eyebrow">Benjo Moments Manager Portal</p>
+        <h2>Choose the job you want to complete</h2>
+        <p>Follow each workflow in order. Every manager window also has a <strong>Page guide</strong> button with instructions for that screen.</p>
+    </div>
+    <a class="btn btn-primary" href="{{ url_for('admin.dashboard') }}"><i class="fas fa-home"></i> Open Dashboard</a>
+</section>
+
+<div class="workflow-list">
+    {% for workflow in workflows %}
+    <section class="workflow-row">
+        <div class="workflow-icon"><i class="fas {{ workflow['icon'] }}"></i></div>
+        <div class="workflow-copy">
+            <h2>{{ workflow['title'] }}</h2>
+            <ol>{% for step in workflow['steps'] %}<li>{{ step }}</li>{% endfor %}</ol>
+            <div class="workflow-links">
+                {% for label, endpoint in workflow['links'] %}<a href="{{ url_for(endpoint) }}">{{ label }} <i class="fas fa-arrow-right"></i></a>{% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endfor %}
+</div>
+
+<section class="manager-safety-note">
+    <i class="fas fa-shield-alt"></i>
+    <div><h2>Before changing or deleting records</h2><p>Confirm the client, amount, collection, or image first. Use Hide or deactivate options for temporary changes. Keep administrator passwords private and use audit history when checking important business changes.</p></div>
+</section>
+{% endblock %}

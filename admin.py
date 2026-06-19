@@ -78,6 +78,14 @@ def dashboard():
                          total_assets=total_assets,
                          recent_transactions=recent_transactions)
 
+
+@admin.route('/guide')
+@login_required
+def manager_guide():
+    """General operating guide for the manager portal."""
+    from admin_guides import SYSTEM_WORKFLOWS
+    return render_template('admin/manager_guide.html', workflows=SYSTEM_WORKFLOWS)
+
 # ============== INCOME ==============
 @admin.route('/income')
 @login_required
