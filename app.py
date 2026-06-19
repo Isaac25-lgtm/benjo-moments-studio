@@ -19,7 +19,7 @@ try:
 except ImportError:
     pass
 
-from flask import Flask, abort, jsonify, request, session
+from flask import Flask, abort, jsonify, render_template, request, session
 from sqlalchemy import text
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -203,6 +203,15 @@ def create_app():
         if not referrer or urlparse(referrer).netloc != request.host:
             referrer = url_for("public.index")
         return redirect(referrer), 303
+
+    @app.errorhandler(500)
+    def internal_server_error(e):
+        original = getattr(e, "original_exception", None)
+        logger.error(
+            "Unhandled application error",
+            exc_info=(type(original), original, original.__traceback__) if original else True,
+        )
+        return render_template("errors/500.html"), 500
 
     # -----------------------------------------------------------------------
     # Blueprint registration

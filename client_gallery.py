@@ -44,7 +44,31 @@ def collection_search():
         if collection:
             return redirect(url_for("client_gallery.collection_unlock", code=collection["collection_code"]))
         flash("No active collection matches that code.", "error")
-    return render_template("public/client_gallery_search.html", settings=settings, code=code)
+    search = request.args.get("q", "").strip()[:100]
+    return render_template(
+        "public/client_gallery_search.html",
+        settings=settings,
+        code=code,
+        search=search,
+        collections=database.get_public_client_collections(search),
+    )
+
+
+@client_gallery.route("/client-gallery/<code>/cover")
+def collection_cover(code):
+    is_admin = session.get("user_role") == "admin" and session.get("user_id")
+    collection = database.get_client_collection_by_code(code, active_only=not is_admin)
+    if not collection:
+        abort(404)
+    if not is_admin and collection.get("expires_at") and collection["expires_at"] < datetime.utcnow():
+        abort(404)
+    image = database.get_collection_cover_image(collection["id"])
+    if not image:
+        abort(404)
+    directory = os.path.join(config.UPLOAD_FOLDER, "client_collections", str(collection["id"]))
+    response = send_from_directory(directory, image["filename"], conditional=True, max_age=3600)
+    response.headers["Cache-Control"] = "private, max-age=3600" if is_admin else "public, max-age=3600"
+    return response
 
 
 @client_gallery.route("/client-gallery/<code>", methods=["GET", "POST"])

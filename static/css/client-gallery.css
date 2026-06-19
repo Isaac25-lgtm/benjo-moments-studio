@@ -43,6 +43,41 @@
 .committee-help { display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin-top: 24px; color: #128c7e; font-weight: 700; text-decoration: none; flex-wrap: wrap; }
 .access-notice { margin-top: 24px; padding: 16px; border: 1px solid #fecaca; background: #fff1f2; color: #9f1239; border-radius: 6px; }
 
+.collection-directory-hero {
+    padding: 132px 20px 48px;
+    background: #171923;
+    color: #fff;
+}
+
+.collection-directory-hero .container { max-width: 1120px; }
+.collection-directory-hero h1 { margin: 0 0 8px; color: #fff; font-size: clamp(34px, 5vw, 56px); }
+.collection-directory-hero > .container > p:not(.eyebrow) { color: #cbd5e1; }
+.directory-search { width: min(720px, 100%); margin-top: 26px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; padding: 8px 8px 8px 16px; background: #fff; border-radius: 6px; color: #64748b; }
+.directory-search input { width: 100%; min-width: 0; padding: 8px 0; border: 0; outline: 0; color: #171923; font: inherit; }
+.collection-directory-main { padding-top: 38px; padding-bottom: 62px; }
+.directory-heading { display: flex; justify-content: space-between; align-items: end; margin-bottom: 22px; }
+.directory-heading h2 { margin-bottom: 3px; font-size: 26px; }
+.directory-heading p { color: #64748b; }
+.collection-directory-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 22px; }
+.directory-card { min-width: 0; overflow: hidden; border: 1px solid #dfe5ec; border-radius: 8px; background: #fff; color: inherit; text-decoration: none; transition: transform .2s ease, box-shadow .2s ease; }
+.directory-card:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(15, 23, 42, .12); }
+.directory-cover { position: relative; aspect-ratio: 4 / 3; overflow: hidden; background: #e7ebf0; }
+.directory-cover img { width: 100%; height: 100%; display: block; object-fit: cover; transition: transform .25s ease; }
+.directory-card:hover .directory-cover img { transform: scale(1.025); }
+.directory-cover > span { position: absolute; top: 12px; right: 12px; padding: 6px 9px; border-radius: 4px; background: rgba(23, 25, 35, .86); color: #fff; font-size: 11px; font-weight: 800; }
+.directory-placeholder { height: 100%; display: grid; place-items: center; color: #94a3b8; font-size: 38px; }
+.directory-card-copy { padding: 16px; }
+.directory-card-copy h3 { margin: 0 0 5px; font-size: 17px; overflow-wrap: anywhere; }
+.directory-card-copy p { min-height: 40px; margin: 0 0 10px; color: #64748b; font-size: 13px; line-height: 1.5; }
+.directory-card-copy small { color: #475569; font-weight: 700; }
+.directory-empty { grid-column: 1 / -1; padding: 56px 20px; border: 1px dashed #cbd5e1; text-align: center; color: #64748b; }
+.directory-empty i { margin-bottom: 12px; color: #94a3b8; font-size: 38px; }
+.directory-empty h2 { color: #1f2937; }
+.code-access-strip { margin-top: 42px; padding: 24px; display: flex; justify-content: space-between; align-items: center; gap: 28px; background: #eef1f5; border-radius: 8px; }
+.code-access-strip h2 { margin: 0; font-size: 21px; }
+.code-access-strip form { width: min(500px, 100%); display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+.code-access-strip input { min-width: 0; padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 6px; font: inherit; }
+
 .collection-hero { padding: 138px 0 48px; background: #171923; color: #fff; }
 .collection-hero-inner { display: flex; justify-content: space-between; align-items: end; gap: 30px; }
 .collection-hero h1 { color: #fff; font-size: clamp(34px, 5vw, 58px); margin: 0 0 8px; }
@@ -82,4 +117,21 @@
     .client-photo-meta { padding: 9px; }
     .client-photo-meta strong { font-size: 13px; }
     .client-photo-meta small { max-width: 90px; }
+    .collection-directory-hero { padding: 106px 14px 34px; }
+    .collection-directory-hero h1 { font-size: 36px; }
+    .directory-search { grid-template-columns: 1fr; padding: 10px 12px; }
+    .directory-search > i { display: none; }
+    .directory-search .btn { width: 100%; }
+    .collection-directory-main { padding-top: 28px; }
+    .collection-directory-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .directory-card-copy { padding: 12px; }
+    .directory-card-copy h3 { font-size: 15px; }
+    .directory-card-copy p { min-height: 54px; font-size: 12px; }
+    .directory-cover > span { top: 8px; right: 8px; padding: 5px 7px; }
+    .code-access-strip { align-items: stretch; flex-direction: column; padding: 20px; }
+    .code-access-strip form { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 380px) {
+    .collection-directory-grid { grid-template-columns: 1fr; }
 }

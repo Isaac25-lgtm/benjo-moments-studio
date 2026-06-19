@@ -1,18 +1,41 @@
 {% extends 'public/base.html' %}
-{% block title %}Find Your Photos - {{ settings['site_name'] if settings else 'Benjo Moments' }}{% endblock %}
+{% block title %}Client Collections - {{ settings['site_name'] if settings else 'Benjo Moments' }}{% endblock %}
 {% block extra_styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/client-gallery.css') }}">{% endblock %}
 {% block content %}
-<section class="client-search-shell">
-    <div class="client-search-panel">
-        <div class="client-icon"><i class="fas fa-images"></i></div>
+<section class="collection-directory-hero">
+    <div class="container">
         <p class="eyebrow">Private Client Delivery</p>
-        <h1>Find your memories</h1>
-        <p>Enter the private collection code supplied by Benjo Moments.</p>
-        <form method="GET" class="collection-code-form">
-            <label for="code">Collection code</label>
-            <div class="input-action"><input id="code" name="code" value="{{ code or '' }}" placeholder="e.g. ISAACSARAH-A1B2C3" required><button class="btn btn-primary" type="submit"><i class="fas fa-arrow-right"></i> Continue</button></div>
+        <h1>Find your collection</h1>
+        <p>Choose your event below, then enter the private PIN supplied by Benjo Moments.</p>
+        <form method="GET" class="directory-search">
+            <i class="fas fa-search"></i>
+            <input name="q" value="{{ search }}" placeholder="Search collection name, venue, or event">
+            <button class="btn btn-primary">Search</button>
         </form>
-        <a class="committee-help" href="https://wa.me/256759189861?text=Hello%20Benjo%20Moments%2C%20I%20need%20help%20finding%20my%20photo%20collection." target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i> Need help? WhatsApp 0759 189 861</a>
     </div>
 </section>
+
+<main class="container collection-directory-main">
+    <div class="directory-heading"><div><h2>Client Collections</h2><p>{{ collections|length }} collection{{ '' if collections|length == 1 else 's' }} available</p></div></div>
+    <div class="collection-directory-grid">
+        {% for collection in collections %}
+        <a class="directory-card" href="{{ url_for('client_gallery.collection_unlock', code=collection['collection_code']) }}">
+            <div class="directory-cover">
+                {% if collection['cover_image_id'] %}<img src="{{ url_for('client_gallery.collection_cover', code=collection['collection_code']) }}" alt="{{ collection['title'] }}" loading="lazy">
+                {% else %}<div class="directory-placeholder"><i class="fas fa-images"></i></div>{% endif %}
+                <span><i class="fas fa-lock"></i> Private</span>
+            </div>
+            <div class="directory-card-copy"><h3>{{ collection['title'] }}</h3><p>{% if collection['event_date'] %}{{ collection['event_date'].strftime('%d %B %Y') }}{% else %}Client collection{% endif %}{% if collection['location'] %} &middot; {{ collection['location'] }}{% endif %}</p><small>{{ collection['image_count'] }} photo{{ '' if collection['image_count'] == 1 else 's' }}</small></div>
+        </a>
+        {% else %}
+        <div class="directory-empty"><i class="fas fa-folder-open"></i><h2>No matching collections</h2><p>Check the spelling, enter your collection code below, or contact Benjo Moments.</p></div>
+        {% endfor %}
+    </div>
+
+    <section class="code-access-strip">
+        <div><p class="eyebrow">Direct Access</p><h2>Already have a collection code?</h2></div>
+        <form method="GET"><input name="code" value="{{ code or '' }}" placeholder="Enter collection code" required><button class="btn btn-primary"><i class="fas fa-arrow-right"></i> Continue</button></form>
+    </section>
+    <a class="committee-help" href="https://wa.me/256759189861?text=Hello%20Benjo%20Moments%2C%20I%20need%20help%20finding%20my%20photo%20collection." target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i> Need help? WhatsApp 0759 189 861</a>
+</main>
 {% endblock %}

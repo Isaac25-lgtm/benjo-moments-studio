@@ -193,9 +193,15 @@ def client_collections():
         except ValueError as exc:
             flash(str(exc), "error")
         return redirect(url_for("admin_extended.client_collections"))
+    search = request.args.get("q", "").strip()[:100]
+    status = request.args.get("status", "all")
+    if status not in {"all", "active", "locked", "expired"}:
+        status = "all"
     return render_template(
         "admin/client_collections.html",
-        collections=database.get_all_client_collections(),
+        collections=database.get_all_client_collections(search=search, status=status),
+        search=search,
+        status=status,
     )
 
 

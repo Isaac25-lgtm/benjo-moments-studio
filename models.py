@@ -122,6 +122,7 @@ class Expense(Base):
     asset = relationship("Asset", back_populates="expenses")
 
     def as_dict(self):
+        loaded_asset = self.__dict__.get("asset")
         return {
             "id": self.id,
             "date": self.date,
@@ -129,7 +130,7 @@ class Expense(Base):
             "category": self.category,
             "amount": float(self.amount),
             "asset_id": self.asset_id,
-            "asset_name": self.asset.name if self.asset else None,
+            "asset_name": loaded_asset.name if loaded_asset else None,
             "payment_status": self.payment_status,
             "payee": self.payee,
             "due_date": self.due_date,

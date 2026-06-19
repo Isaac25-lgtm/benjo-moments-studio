@@ -95,6 +95,7 @@ class ReleaseSmokeTests(unittest.TestCase):
         asset = next(item for item in assets if item["id"] == asset_id)
         self.assertEqual(asset["expense_total"], 50000.0)
         self.assertGreaterEqual(database.get_outstanding_expenses_total(), 50000.0)
+        self.assertEqual(self.client.get("/admin/").status_code, 200)
 
         paid_name = f"Paid {self.suffix}"
         unpaid_name = f"Unpaid {self.suffix}"
@@ -139,7 +140,23 @@ class ReleaseSmokeTests(unittest.TestCase):
             self.assertEqual(response.status_code, 302)
             image = database.get_client_collection(collection_id)["images"][0]
 
+            public_directory = self.client.get(
+                "/client-gallery",
+                query_string={"q": f"Smoke Collection {self.suffix}"},
+            )
+            self.assertEqual(public_directory.status_code, 200)
+            self.assertIn(f"Smoke Collection {self.suffix}".encode(), public_directory.data)
+            admin_directory = self.client.get(
+                "/admin/client-collections",
+                query_string={"q": f"Client {self.suffix}", "status": "active"},
+            )
+            self.assertEqual(admin_directory.status_code, 200)
+            self.assertIn(f"Smoke Collection {self.suffix}".encode(), admin_directory.data)
+
             visitor = self.app.test_client()
+            cover = visitor.get(f"/client-gallery/{code}/cover")
+            self.assertEqual(cover.status_code, 200)
+            cover.close()
             visitor.get(f"/client-gallery/{code}")
             with visitor.session_transaction() as session:
                 token = session["_csrf_token"]

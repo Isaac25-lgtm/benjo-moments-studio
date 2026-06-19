@@ -1353,7 +1353,11 @@ def get_recent_transactions(limit: int = 10) -> list[_Row]:
             select(Income).where(Income.is_deleted == False).order_by(Income.date.desc()).limit(limit)  # noqa: E712
         ).all()
         expense_rows = session.scalars(
-            select(Expense).where(Expense.is_deleted == False).order_by(Expense.date.desc()).limit(limit)  # noqa: E712
+            select(Expense)
+            .options(selectinload(Expense.asset))
+            .where(Expense.is_deleted == False)  # noqa: E712
+            .order_by(Expense.date.desc())
+            .limit(limit)
         ).all()
 
     transactions = []
@@ -1541,7 +1545,7 @@ def generate_collection_code(title: str) -> str:
     return f"{base}-{secrets.token_hex(3).upper()}"
 
 
-def get_all_client_collections() -> list[_Row]:
+def get_all_client_collections(search: str = "", status: str = "all") -> list[_Row]:
     with SessionLocal() as session:
         image_count = (
             select(
@@ -1559,23 +1563,67 @@ def get_all_client_collections() -> list[_Row]:
             .group_by(GalleryDownload.collection_id)
             .subquery()
         )
-        rows = session.execute(
+        cover_image_id = (
+            select(ClientCollectionImage.id)
+            .where(ClientCollectionImage.collection_id == ClientCollection.id)
+            .order_by(ClientCollectionImage.display_order, ClientCollectionImage.id)
+            .limit(1)
+            .scalar_subquery()
+        )
+        query = (
             select(
                 ClientCollection,
                 func.coalesce(image_count.c.image_count, 0),
                 func.coalesce(download_count.c.download_count, 0),
+                cover_image_id.label("cover_image_id"),
             )
             .outerjoin(image_count, image_count.c.collection_id == ClientCollection.id)
             .outerjoin(download_count, download_count.c.collection_id == ClientCollection.id)
             .order_by(ClientCollection.created_at.desc())
-        ).all()
+        )
+        search = str(search).strip()
+        if search:
+            pattern = f"%{search}%"
+            query = query.where(
+                or_(
+                    ClientCollection.title.ilike(pattern),
+                    ClientCollection.client_name.ilike(pattern),
+                    ClientCollection.collection_code.ilike(pattern),
+                    ClientCollection.location.ilike(pattern),
+                )
+            )
+        now = datetime.utcnow()
+        if status == "active":
+            query = query.where(
+                ClientCollection.is_active == True,  # noqa: E712
+                or_(ClientCollection.expires_at.is_(None), ClientCollection.expires_at >= now),
+            )
+        elif status == "locked":
+            query = query.where(
+                ClientCollection.is_active == False,  # noqa: E712
+                or_(ClientCollection.expires_at.is_(None), ClientCollection.expires_at >= now),
+            )
+        elif status == "expired":
+            query = query.where(ClientCollection.expires_at < now)
+        rows = session.execute(query).all()
         result = []
-        for collection, images, downloads in rows:
+        for collection, images, downloads, cover_id in rows:
             item = _to_row(collection)
             item["image_count"] = int(images)
             item["download_count"] = int(downloads)
+            item["cover_image_id"] = cover_id
+            if collection.expires_at and collection.expires_at < now:
+                item["access_status"] = "expired"
+            elif collection.is_active:
+                item["access_status"] = "active"
+            else:
+                item["access_status"] = "locked"
             result.append(item)
         return result
+
+
+def get_public_client_collections(search: str = "") -> list[_Row]:
+    return get_all_client_collections(search=search, status="active")
 
 
 def get_client_collection(collection_id: int) -> Optional[_Row]:
@@ -1723,6 +1771,17 @@ def add_client_collection_image(collection_id, filename, original_name, caption=
 def get_client_collection_image(image_id: int) -> Optional[_Row]:
     with SessionLocal() as session:
         return _to_row(session.get(ClientCollectionImage, image_id))
+
+
+def get_collection_cover_image(collection_id: int) -> Optional[_Row]:
+    with SessionLocal() as session:
+        row = session.scalar(
+            select(ClientCollectionImage)
+            .where(ClientCollectionImage.collection_id == collection_id)
+            .order_by(ClientCollectionImage.display_order, ClientCollectionImage.id)
+            .limit(1)
+        )
+        return _to_row(row)
 
 
 def delete_client_collection_image(image_id: int) -> Optional[_Row]:
