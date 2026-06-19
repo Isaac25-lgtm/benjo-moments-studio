@@ -440,18 +440,29 @@
                         class="fas fa-chart-bar"></i> Reports</a></li>
 
             <li class="sidebar-section">Website</li>
+            <li><a href="{{ url_for('admin_extended.client_collections') }}"
+                    class="{% if request.endpoint and request.endpoint.startswith('admin_extended.client_collection') %}active{% endif %}"><i
+                        class="fas fa-folder-lock"></i> Client Delivery</a></li>
             <li><a href="{{ url_for('admin.messages') }}"
                     class="{% if request.endpoint == 'admin.messages' %}active{% endif %}"><i
                         class="fas fa-envelope"></i> Messages</a></li>
             <li><a href="{{ url_for('admin.gallery_manager') }}"
                     class="{% if request.endpoint == 'admin.gallery_manager' %}active{% endif %}"><i
                         class="fas fa-images"></i> Gallery Manager</a></li>
+            <li><a href="{{ url_for('admin_extended.services') }}"
+                    class="{% if request.endpoint and request.endpoint.startswith('admin_extended.') and 'service' in request.endpoint %}active{% endif %}"><i
+                        class="fas fa-camera-retro"></i> Professional Services</a></li>
             <li><a href="{{ url_for('admin.pricing') }}"
                     class="{% if request.endpoint == 'admin.pricing' or request.endpoint == 'admin.add_pricing' or request.endpoint == 'admin.edit_pricing' %}active{% endif %}"><i
                         class="fas fa-tags"></i> Pricing Packages</a></li>
             <li><a href="{{ url_for('admin.website_settings') }}"
                     class="{% if request.endpoint == 'admin.website_settings' %}active{% endif %}"><i
                         class="fas fa-cog"></i> Website Settings</a></li>
+
+            <li class="sidebar-section">Access</li>
+            <li><a href="{{ url_for('admin_extended.users') }}"
+                    class="{% if request.endpoint and request.endpoint.startswith('admin_extended.user') %}active{% endif %}"><i
+                        class="fas fa-user-shield"></i> Administrators</a></li>
 
             <li class="sidebar-section">Preview</li>
             <li><a href="{{ url_for('public.index') }}" target="_blank" rel="noopener"><i class="fas fa-external-link-alt"></i> View

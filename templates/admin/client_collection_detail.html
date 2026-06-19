@@ -1,0 +1,79 @@
+{% extends 'admin/base.html' %}
+{% block title %}{{ collection['title'] }}{% endblock %}
+{% block page_title %}{{ collection['title'] }}{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+    <a class="btn" style="background:#718096;color:white;" href="{{ url_for('admin_extended.client_collections') }}"><i class="fas fa-arrow-left"></i> Collections</a>
+    <a class="btn btn-primary" target="_blank" href="{{ url_for('client_gallery.collection_unlock', code=collection['collection_code']) }}"><i class="fas fa-external-link-alt"></i> Open Client Link</a>
+</div>
+
+<div class="content-card">
+    <h2><i class="fas fa-sliders"></i> Collection Settings</h2>
+    <p class="text-muted" style="margin-bottom:18px;">Share code <strong>{{ collection['collection_code'] }}</strong>. PINs are never displayed after creation; reset the PIN when needed.</p>
+    <form action="{{ url_for('admin_extended.update_client_collection', collection_id=collection['id']) }}" method="POST">
+        <div class="form-row">
+            <div class="form-group"><label>Title</label><input name="title" value="{{ collection['title'] }}" required></div>
+            <div class="form-group"><label>Client name</label><input name="client_name" value="{{ collection['client_name'] }}" required></div>
+            <div class="form-group"><label>Client email</label><input type="email" name="client_email" value="{{ collection['client_email'] or '' }}"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Event date</label><input type="date" name="event_date" value="{{ collection['event_date'] or '' }}"></div>
+            <div class="form-group"><label>Venue / location</label><input name="location" value="{{ collection['location'] or '' }}"></div>
+            <div class="form-group"><label>Expiry date</label><input type="date" name="expires_at" value="{{ collection['expires_at'].strftime('%Y-%m-%d') if collection['expires_at'] else '' }}"></div>
+        </div>
+        <div class="form-group"><label>Description</label><textarea name="description" rows="2">{{ collection['description'] or '' }}</textarea></div>
+        <label style="display:flex;gap:8px;align-items:center;margin-bottom:16px;"><input type="checkbox" name="is_active" {% if collection['is_active'] %}checked{% endif %}> Collection active</label>
+        <button class="btn btn-primary"><i class="fas fa-save"></i> Save</button>
+    </form>
+    <form action="{{ url_for('admin_extended.reset_collection_pin', collection_id=collection['id']) }}" method="POST" style="margin-top:18px;display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+        <div class="form-group" style="margin:0;min-width:240px;"><label>New PIN</label><input name="pin" minlength="4" placeholder="Leave blank to generate"></div>
+        <button class="btn btn-warning"><i class="fas fa-key"></i> Reset PIN</button>
+    </form>
+</div>
+
+<div class="content-card">
+    <h2><i class="fas fa-cloud-upload-alt"></i> Upload Client Photos</h2>
+    <form action="{{ url_for('admin_extended.upload_collection_images', collection_id=collection['id']) }}" method="POST" enctype="multipart/form-data">
+        <div class="form-row">
+            <div class="form-group"><label>Photos <small class="text-muted">(up to 10 each upload)</small></label><input type="file" name="images" accept="image/jpeg,image/png,image/webp" multiple required></div>
+            <div class="form-group"><label>Shared caption <small class="text-muted">(optional)</small></label><input name="caption"></div>
+        </div>
+        <button class="btn btn-primary"><i class="fas fa-upload"></i> Upload Photos</button>
+    </form>
+</div>
+
+<div class="content-card">
+    <h2><i class="fas fa-images"></i> Photos ({{ collection['images']|length }})</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;margin-top:18px;">
+        {% for image in collection['images'] %}
+        <div style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;background:#f8fafc;">
+            <img src="{{ url_for('client_gallery.collection_photo', code=collection['collection_code'], image_id=image['id']) }}" alt="{{ image['caption'] or image['original_name'] }}" style="width:100%;height:130px;object-fit:cover;">
+            <div style="padding:10px;"><small style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ image['original_name'] }}</small><form action="{{ url_for('admin_extended.delete_collection_image', collection_id=collection['id'], image_id=image['id']) }}" method="POST" onsubmit="return confirm('Delete this client photo?')"><button class="btn btn-danger btn-sm" style="margin-top:8px;" title="Delete"><i class="fas fa-trash"></i></button></form></div>
+        </div>
+        {% else %}<p class="text-muted">No photos uploaded yet.</p>{% endfor %}
+    </div>
+</div>
+
+<div class="content-card">
+    <h2><i class="fas fa-chart-line"></i> Client Activity</h2>
+    <div class="stats-grid" style="margin-top:18px;">
+        <div class="stat-card"><h3>Visitors</h3><div class="value">{{ activity['visitors']|length }}</div></div>
+        <div class="stat-card"><h3>Downloads</h3><div class="value">{{ activity['downloads']|length }}</div></div>
+        <div class="stat-card"><h3>Comments</h3><div class="value">{{ activity['comments']|length }}</div></div>
+    </div>
+    {% if activity['downloads'] %}
+    <h3 style="margin:24px 0 10px;">Recent Downloads</h3>
+    <div style="overflow-x:auto;"><table><thead><tr><th>Email</th><th>Photo</th><th>Type</th><th>Time</th></tr></thead><tbody>{% for item in activity['downloads'] %}<tr><td>{{ item['visitor_email'] or '-' }}</td><td>{{ item['image_name'] or 'Entire collection' }}</td><td>{{ item['download_type'] }}</td><td>{{ item['downloaded_at'].strftime('%Y-%m-%d %H:%M') }}</td></tr>{% endfor %}</tbody></table></div>
+    {% endif %}
+    {% if activity['comments'] %}
+    <h3 style="margin:24px 0 10px;">Comments</h3>
+    <div style="overflow-x:auto;"><table><thead><tr><th>Email</th><th>Photo</th><th>Comment</th><th>Time</th></tr></thead><tbody>{% for item in activity['comments'] %}<tr><td>{{ item['visitor_email'] }}</td><td>{{ item['image_name'] }}</td><td>{{ item['comment'] }}</td><td>{{ item['created_at'].strftime('%Y-%m-%d %H:%M') }}</td></tr>{% endfor %}</tbody></table></div>
+    {% endif %}
+</div>
+
+<div class="content-card" style="border:1px solid #fed7d7;">
+    <form action="{{ url_for('admin_extended.delete_collection', collection_id=collection['id']) }}" method="POST" onsubmit="return confirm('Permanently delete this collection, its photos, comments, and activity?')">
+        <button class="btn btn-danger"><i class="fas fa-trash"></i> Delete Collection</button>
+    </form>
+</div>
+{% endblock %}

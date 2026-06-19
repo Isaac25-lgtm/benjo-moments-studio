@@ -142,12 +142,17 @@
 
 <section class="section">
     <div class="container">
+        <form method="GET" style="max-width:680px;margin:0 auto 24px;display:grid;grid-template-columns:1fr auto;gap:10px;">
+            {% if current_album %}<input type="hidden" name="album" value="{{ current_album }}">{% endif %}
+            <input type="search" name="q" value="{{ search }}" placeholder="Search for your memories" aria-label="Search gallery" style="border:1px solid #cbd5e1;border-radius:6px;padding:13px 15px;font:inherit;">
+            <button class="btn btn-primary" type="submit"><i class="fas fa-search"></i> Search</button>
+        </form>
         <!-- Filter Buttons -->
         <div class="filter-buttons">
-            <a href="{{ url_for('public.gallery') }}"
+            <a href="{{ url_for('public.gallery', q=search or None) }}"
                 class="filter-btn {% if not current_album %}active{% endif %}">All</a>
             {% for album in albums %}
-            <a href="{{ url_for('public.gallery', album=album) }}"
+            <a href="{{ url_for('public.gallery', album=album, q=search or None) }}"
                 class="filter-btn {% if current_album == album %}active{% endif %}">{{ album.title() }}</a>
             {% endfor %}
         </div>

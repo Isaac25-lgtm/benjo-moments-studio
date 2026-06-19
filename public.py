@@ -47,12 +47,18 @@ def index():
     # Get active pricing packages
     pricing_packages = database.get_active_pricing_packages()
     hero_images = database.get_all_hero_images()
-    return render_template('public/index.html', settings=settings, gallery_images=gallery_images, pricing_packages=pricing_packages, hero_images=hero_images)
+    service_catalogue = database.get_service_catalogue()
+    return render_template(
+        'public/index.html', settings=settings, gallery_images=gallery_images,
+        pricing_packages=pricing_packages, hero_images=hero_images,
+        service_catalogue=service_catalogue,
+    )
 
 @public.route('/gallery')
 def gallery():
     """Gallery page with album filtering."""
     album = request.args.get('album', None)
+    search = request.args.get('q', '').strip()[:100]
     settings = database.get_website_settings()
     albums = list(config.ALBUM_FOLDERS.keys())
     
@@ -60,17 +66,23 @@ def gallery():
         abort(404)
 
     if album:
-        images = database.get_published_gallery_images(album)
+        images = database.get_published_gallery_images(album, search=search)
     else:
-        images = database.get_published_gallery_images()
+        images = database.get_published_gallery_images(search=search)
     
-    return render_template('public/gallery.html', settings=settings, images=images, albums=albums, current_album=album)
+    return render_template(
+        'public/gallery.html', settings=settings, images=images, albums=albums,
+        current_album=album, search=search,
+    )
 
 @public.route('/services')
 def services():
     """Services page."""
     settings = database.get_website_settings()
-    return render_template('public/services.html', settings=settings)
+    return render_template(
+        'public/services.html', settings=settings,
+        service_catalogue=database.get_service_catalogue(),
+    )
 
 @public.route('/about')
 def about():
@@ -88,7 +100,10 @@ def contact():
         save_contact_message(contact_form_values())
         return redirect(url_for('public.contact'))
     
-    return render_template('public/contact.html', settings=settings)
+    return render_template(
+        'public/contact.html', settings=settings,
+        service_catalogue=database.get_service_catalogue(),
+    )
 
 @public.route('/submit-contact', methods=['POST'])
 @limiter.limit("5 per minute")

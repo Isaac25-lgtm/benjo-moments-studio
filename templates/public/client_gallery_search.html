@@ -1,0 +1,18 @@
+{% extends 'public/base.html' %}
+{% block title %}Find Your Photos - {{ settings['site_name'] if settings else 'Benjo Moments' }}{% endblock %}
+{% block extra_styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/client-gallery.css') }}">{% endblock %}
+{% block content %}
+<section class="client-search-shell">
+    <div class="client-search-panel">
+        <div class="client-icon"><i class="fas fa-images"></i></div>
+        <p class="eyebrow">Private Client Delivery</p>
+        <h1>Find your memories</h1>
+        <p>Enter the private collection code supplied by Benjo Moments.</p>
+        <form method="GET" class="collection-code-form">
+            <label for="code">Collection code</label>
+            <div class="input-action"><input id="code" name="code" value="{{ code or '' }}" placeholder="e.g. ISAACSARAH-A1B2C3" required><button class="btn btn-primary" type="submit"><i class="fas fa-arrow-right"></i> Continue</button></div>
+        </form>
+        <a class="committee-help" href="https://wa.me/256759189861?text=Hello%20Benjo%20Moments%2C%20I%20need%20help%20finding%20my%20photo%20collection." target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i> Need help? WhatsApp 0759 189 861</a>
+    </div>
+</section>
+{% endblock %}

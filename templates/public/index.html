@@ -277,49 +277,31 @@
             <p>Professional photography services tailored to your needs</p>
         </div>
         <div class="services-grid">
-            <div class="service-card">
-                <img class="svc-photo" src="https://images.pexels.com/photos/1024993/pexels-photo-1024993.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop" alt="Weddings & Kwanjula" loading="lazy">
-                <h3>Weddings & Kwanjula</h3>
-                <p>Full coverage for weddings, introductions, and engagements — capturing every magical moment.</p>
-            </div>
-            <div class="service-card">
-                <img class="svc-photo" src="https://images.pexels.com/photos/7099945/pexels-photo-7099945.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop" alt="Birthdays & Parties" loading="lazy">
-                <h3>Birthdays & Parties</h3>
-                <p>Birthday parties, baby showers, gender reveals, graduations, anniversaries, and family reunions.</p>
-            </div>
-            <div class="service-card">
-                <img class="svc-photo" src="https://images.pexels.com/photos/7648306/pexels-photo-7648306.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop" alt="Corporate & Branding" loading="lazy">
-                <h3>Corporate & Branding</h3>
-                <p>Events, conferences, product launches, company profiles, staff headshots, and office photography.</p>
-            </div>
-            <div class="service-card">
-                <img class="svc-photo" src="https://images.pexels.com/photos/8815027/pexels-photo-8815027.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop" alt="Religious & Community" loading="lazy">
-                <h3>Religious & Community</h3>
-                <p>Church services, baptisms, dedications, funerals, memorials, and community outreach programs.</p>
-            </div>
-            <div class="service-card">
-                <img class="svc-photo" src="https://images.pexels.com/photos/11388583/pexels-photo-11388583.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop" alt="Lifestyle & Studio" loading="lazy">
-                <h3>Lifestyle & Studio</h3>
-                <p>Portraits, maternity shoots, newborn photography, fashion portfolios, and couple/pre-wedding shoots.</p>
-            </div>
-            <div class="service-card">
-                <img class="svc-photo" src="https://images.pexels.com/photos/2608519/pexels-photo-2608519.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop" alt="Media & Creative" loading="lazy">
-                <h3>Media & Creative</h3>
-                <p>Music videos, concerts, documentary photography, travel/tourism, and food photography.</p>
-            </div>
-            <div class="service-card">
-                <img class="svc-photo" src="https://images.pexels.com/photos/2388569/pexels-photo-2388569.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop" alt="Commercial & Marketing" loading="lazy">
-                <h3>Commercial & Marketing</h3>
-                <p>Advertising campaigns, e-commerce product photos, billboards, print ads, and social media content.</p>
-            </div>
-            <div class="service-card">
-                <img class="svc-photo" src="https://images.pexels.com/photos/4348404/pexels-photo-4348404.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop" alt="Graphics & Passport" loading="lazy">
-                <h3>Graphics & Passport</h3>
-                <p>Graphics design, passport express, passport photos, and ordinary photo printing services.</p>
-            </div>
+            {% for category in service_catalogue %}
+            <a class="service-card" href="{{ url_for('public.services') }}" style="display:block;text-decoration:none;color:inherit;">
+                {% if category['image_url'] %}<img class="svc-photo" src="{{ category['image_url'] }}" alt="{{ category['name'] }}" loading="lazy">{% endif %}
+                <h3><i class="fas {{ category['icon'] }}" style="font-size:18px;margin-right:6px;"></i>{{ category['name'] }}</h3>
+                <p>{{ category['description'] }}</p>
+            </a>
+            {% endfor %}
         </div>
     </div>
 </section>
+
+<!-- Committee Inquiries -->
+<section class="section" style="background:#f4f6f8;">
+    <div class="container committee-inquiry-grid">
+        <div>
+            <div class="section-title" style="text-align:left;margin-bottom:24px;"><h2>Committee & Group Bookings</h2><p>Planning as a committee? Speak directly with our team for coordinated coverage, schedules, and group packages.</p></div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;"><span class="filter-btn">Weddings</span><span class="filter-btn">Kwanjula</span><span class="filter-btn">Graduations</span><span class="filter-btn">Church & Community</span><span class="filter-btn">Corporate Events</span></div>
+        </div>
+        <div style="background:#1a1a2e;color:white;padding:30px;border-radius:8px;"><i class="fab fa-whatsapp" style="font-size:34px;color:#25D366;"></i><h3 style="color:white;margin:14px 0 8px;">Direct Committee Inquiry</h3><p style="margin-bottom:20px;color:#cbd5e1;">WhatsApp 0759 189 861 with your event name, date, venue, and estimated attendance.</p><a class="btn btn-primary" target="_blank" rel="noopener" href="https://wa.me/256759189861?text=Hello%20Benjo%20Moments%2C%20I%20am%20inquiring%20on%20behalf%20of%20an%20event%20committee."><i class="fab fa-whatsapp"></i> Start Inquiry</a></div>
+    </div>
+</section>
+<style>
+    .committee-inquiry-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(280px,.75fr);gap:42px;align-items:center}
+    @media(max-width:760px){.committee-inquiry-grid{grid-template-columns:1fr}}
+</style>
 
 <!-- Portfolio Section -->
 <section class="section">
@@ -483,39 +465,7 @@
                     <select name="service"
                         style="width: 100%; padding: 15px 20px; border: 2px solid #e2e8f0; border-radius: 10px; margin-bottom: 15px; font-family: inherit; font-size: 15px; background: #f7fafc; color: #333;">
                         <option value="">Select Service (Optional)</option>
-                        <optgroup label="Events &amp; Celebrations">
-                            <option value="Wedding Photography">Wedding Photography</option>
-                            <option value="Kukyala Coverage">Kukyala Coverage</option>
-                            <option value="Birthday Photography">Birthday Photography</option>
-                            <option value="Baby Shoot">Baby Shoot</option>
-                            <option value="Graduation Photography">Graduation Photography</option>
-                            <option value="Party & Social Events">Party &amp; Social Events</option>
-                        </optgroup>
-                        <optgroup label="Corporate &amp; Business">
-                            <option value="Corporate Events">Corporate Events</option>
-                            <option value="Corporate Portraits">Corporate Portraits</option>
-                            <option value="Business Branding">Business Branding</option>
-                        </optgroup>
-                        <optgroup label="Religious &amp; Community">
-                            <option value="Church Events">Church Events</option>
-                            <option value="Community Events">Community Events</option>
-                        </optgroup>
-                        <optgroup label="Lifestyle &amp; Studio">
-                            <option value="Portrait Session">Portrait Session</option>
-                            <option value="Family Photography">Family Photography</option>
-                            <option value="Couple & Engagement">Couple &amp; Engagement</option>
-                            <option value="Passport & ID Photos">Passport &amp; ID Photos</option>
-                        </optgroup>
-                        <optgroup label="Media &amp; Creative">
-                            <option value="Video Production">Video Production</option>
-                            <option value="Graphics Design">Graphics Design</option>
-                        </optgroup>
-                        <optgroup label="Commercial &amp; Marketing">
-                            <option value="Product Photography">Product Photography</option>
-                            <option value="Food Photography">Food Photography</option>
-                            <option value="Real Estate Photography">Real Estate Photography</option>
-                        </optgroup>
-                        <option value="Photo Printing">Photo Printing</option>
+                        {% for category in service_catalogue %}<optgroup label="{{ category['name'] }}">{% for service in category['services'] %}<option value="{{ service['name'] }}">{{ service['name'] }}</option>{% endfor %}</optgroup>{% endfor %}
                         <option value="Other">Other</option>
                     </select>
                     <textarea name="message" placeholder="Your Message *" rows="4" required

@@ -1,0 +1,65 @@
+{% extends 'admin/base.html' %}
+{% block title %}Professional Services{% endblock %}
+{% block page_title %}Professional Services{% endblock %}
+{% block content %}
+<div class="content-card">
+    <h2><i class="fas fa-layer-group"></i> Add Service Category</h2>
+    <form action="{{ url_for('admin_extended.add_service_category') }}" method="POST">
+        <div class="form-row">
+            <div class="form-group"><label>Category name</label><input name="name" required></div>
+            <div class="form-group"><label>Font Awesome icon</label><input name="icon" value="fa-camera" placeholder="fa-camera"></div>
+            <div class="form-group"><label>Display order</label><input type="number" name="display_order" min="0" value="0"></div>
+        </div>
+        <div class="form-group"><label>Description</label><input name="description"></div>
+        <div class="form-group"><label>Category image URL</label><input type="url" name="image_url" placeholder="https://..."></div>
+        <button class="btn btn-primary"><i class="fas fa-plus"></i> Add Category</button>
+    </form>
+</div>
+
+{% for category in service_catalogue %}
+<div class="content-card">
+    <form action="{{ url_for('admin_extended.update_service_category', category_id=category['id']) }}" method="POST">
+        <div style="display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap;">
+            <h2 style="margin:0;"><i class="fas {{ category['icon'] }}"></i> {{ category['name'] }}</h2>
+            <label><input type="checkbox" name="is_active" {% if category['is_active'] %}checked{% endif %}> Visible</label>
+        </div>
+        <div class="form-row" style="margin-top:16px;">
+            <div class="form-group"><label>Name</label><input name="name" value="{{ category['name'] }}" required></div>
+            <div class="form-group"><label>Icon</label><input name="icon" value="{{ category['icon'] }}"></div>
+            <div class="form-group"><label>Order</label><input type="number" name="display_order" min="0" value="{{ category['display_order'] }}"></div>
+        </div>
+        <div class="form-group"><label>Description</label><input name="description" value="{{ category['description'] or '' }}"></div>
+        <div class="form-group"><label>Image URL</label><input type="url" name="image_url" value="{{ category['image_url'] or '' }}"></div>
+        <button class="btn btn-primary"><i class="fas fa-save"></i> Save Category</button>
+    </form>
+    <form action="{{ url_for('admin_extended.delete_service_category', category_id=category['id']) }}" method="POST" style="display:inline;float:right;margin-top:-40px;" onsubmit="return confirm('Delete this category and all its services?')">
+        <button class="btn btn-danger" title="Delete category"><i class="fas fa-trash"></i></button>
+    </form>
+
+    <div style="margin-top:24px;overflow-x:auto;">
+        {% for service in category['services'] %}
+        <form action="{{ url_for('admin_extended.update_service_item', service_id=service['id']) }}" method="POST" style="display:grid;grid-template-columns:minmax(170px,1fr) minmax(220px,2fr) 120px 80px auto;gap:10px;align-items:end;padding:12px 0;border-top:1px solid #e2e8f0;min-width:760px;">
+            <input type="hidden" name="category_id" value="{{ category['id'] }}">
+            <div class="form-group" style="margin:0;"><label>Service</label><input name="name" value="{{ service['name'] }}" required></div>
+            <div class="form-group" style="margin:0;"><label>Description</label><input name="description" value="{{ service['description'] or '' }}"></div>
+            <div class="form-group" style="margin:0;"><label>Icon</label><input name="icon" value="{{ service['icon'] }}"></div>
+            <div class="form-group" style="margin:0;"><label>Order</label><input type="number" name="display_order" value="{{ service['display_order'] }}" min="0"></div>
+            <div style="display:flex;gap:6px;align-items:center;"><label title="Visible"><input type="checkbox" name="is_active" {% if service['is_active'] %}checked{% endif %}></label><button class="btn btn-primary btn-sm" title="Save"><i class="fas fa-save"></i></button></div>
+        </form>
+        <form action="{{ url_for('admin_extended.delete_service_item', service_id=service['id']) }}" method="POST" style="text-align:right;margin-top:-48px;margin-bottom:16px;" onsubmit="return confirm('Delete this service?')"><button class="btn btn-danger btn-sm" title="Delete"><i class="fas fa-trash"></i></button></form>
+        {% endfor %}
+    </div>
+    <form action="{{ url_for('admin_extended.add_service_item') }}" method="POST" style="margin-top:24px;padding-top:18px;border-top:2px solid #edf2f7;">
+        <input type="hidden" name="category_id" value="{{ category['id'] }}">
+        <h3 style="margin-bottom:12px;">Add service to {{ category['name'] }}</h3>
+        <div class="form-row">
+            <div class="form-group"><input name="name" placeholder="Service name" required></div>
+            <div class="form-group"><input name="description" placeholder="Short description"></div>
+            <div class="form-group"><input name="icon" value="fa-camera" placeholder="Icon"></div>
+            <div class="form-group"><input type="number" name="display_order" min="0" value="0"></div>
+        </div>
+        <button class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> Add Service</button>
+    </form>
+</div>
+{% endfor %}
+{% endblock %}

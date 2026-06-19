@@ -107,6 +107,7 @@ def create_app():
     for folder in config.ALBUM_FOLDERS.values():
         os.makedirs(os.path.join(config.UPLOAD_FOLDER, folder), exist_ok=True)
     os.makedirs(os.path.join(config.UPLOAD_FOLDER, "hero"), exist_ok=True)
+    os.makedirs(os.path.join(config.UPLOAD_FOLDER, "client_collections"), exist_ok=True)
 
     # NOTE (Phase 9): Alembic migrations are NO LONGER run at startup.
     # They run via Render's releaseCommand: "alembic upgrade head".
@@ -119,6 +120,7 @@ def create_app():
     with app.app_context():
         database.init_default_settings()
         database.create_default_pricing_packages()
+        database.create_default_services()
         if not config.TEST_AUTH_MODE:
             database.synchronize_environment_admin()
 
@@ -207,9 +209,13 @@ def create_app():
     # -----------------------------------------------------------------------
     from auth import auth
     from admin import admin
+    from admin_extended import admin_extended
+    from client_gallery import client_gallery
     from public import public
     app.register_blueprint(auth)
     app.register_blueprint(admin)
+    app.register_blueprint(admin_extended)
+    app.register_blueprint(client_gallery)
     app.register_blueprint(public)
 
     logger.info(

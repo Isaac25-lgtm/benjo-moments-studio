@@ -1,0 +1,43 @@
+{% extends 'admin/base.html' %}
+{% block title %}Client Collections{% endblock %}
+{% block page_title %}Client Photo Delivery{% endblock %}
+{% block content %}
+<div class="content-card">
+    <h2><i class="fas fa-folder-plus"></i> Create Private Collection</h2>
+    <p class="text-muted" style="margin-bottom:20px;">Each client receives a separate collection code and PIN. Email is required before viewing or downloading.</p>
+    <form method="POST">
+        <div class="form-row">
+            <div class="form-group"><label>Collection title</label><input name="title" placeholder="Isaac & Sarah Wedding" required></div>
+            <div class="form-group"><label>Client name</label><input name="client_name" required></div>
+            <div class="form-group"><label>Client email</label><input type="email" name="client_email"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Event date</label><input type="date" name="event_date"></div>
+            <div class="form-group"><label>Venue / location</label><input name="location" placeholder="Studio, hotel, church..."></div>
+            <div class="form-group"><label>Expiry date</label><input type="date" name="expires_at"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Collection code <small class="text-muted">(optional)</small></label><input name="collection_code" pattern="[A-Za-z0-9-]{3,80}" placeholder="Generated automatically"></div>
+            <div class="form-group"><label>Client PIN <small class="text-muted">(optional)</small></label><input name="pin" minlength="4" placeholder="Generated automatically"></div>
+        </div>
+        <div class="form-group"><label>Description</label><textarea name="description" rows="2"></textarea></div>
+        <button class="btn btn-primary"><i class="fas fa-lock"></i> Create Collection</button>
+    </form>
+</div>
+
+<div class="content-card">
+    <h2><i class="fas fa-images"></i> Client Collections</h2>
+    {% if collections %}
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-top:20px;">
+        {% for collection in collections %}
+        <a href="{{ url_for('admin_extended.client_collection_detail', collection_id=collection['id']) }}" style="display:block;text-decoration:none;color:inherit;background:#f8fafc;border:1px solid #e2e8f0;padding:20px;border-radius:8px;">
+            <div style="display:flex;justify-content:space-between;gap:10px;"><strong>{{ collection['title'] }}</strong><span class="badge {% if collection['is_active'] %}badge-success{% else %}badge-warning{% endif %}">{{ 'Active' if collection['is_active'] else 'Locked' }}</span></div>
+            <p class="text-muted" style="margin:8px 0;">{{ collection['client_name'] }}{% if collection['location'] %} · {{ collection['location'] }}{% endif %}</p>
+            <code>{{ collection['collection_code'] }}</code>
+            <p style="margin-top:12px;font-size:13px;">{{ collection['image_count'] }} photos · {{ collection['download_count'] }} downloads</p>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}<p class="text-muted">No client collections yet.</p>{% endif %}
+</div>
+{% endblock %}

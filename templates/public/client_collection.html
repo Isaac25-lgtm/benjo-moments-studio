@@ -1,0 +1,55 @@
+{% extends 'public/base.html' %}
+{% block title %}{{ collection['title'] }} - Client Photos{% endblock %}
+{% block extra_styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/client-gallery.css') }}">{% endblock %}
+{% block content %}
+<section class="collection-hero">
+    <div class="container collection-hero-inner">
+        <div>
+            <p class="eyebrow">Private Client Collection</p>
+            <h1>{{ collection['title'] }}</h1>
+            <p>{{ collection['client_name'] }}{% if collection['event_date'] %} · {{ collection['event_date'].strftime('%d %B %Y') }}{% endif %}{% if collection['location'] %} · {{ collection['location'] }}{% endif %}</p>
+        </div>
+        <div class="collection-actions">
+            <a class="btn btn-primary" href="{{ url_for('client_gallery.download_all', code=collection['collection_code']) }}"><i class="fas fa-download"></i> Download All</a>
+            <form action="{{ url_for('client_gallery.lock_collection', code=collection['collection_code']) }}" method="POST"><button class="icon-command" title="Lock collection" aria-label="Lock collection"><i class="fas fa-lock"></i></button></form>
+        </div>
+    </div>
+</section>
+
+<main class="client-collection-main container">
+    <div class="collection-toolbar">
+        <form method="GET" class="photo-search"><i class="fas fa-search"></i><input name="q" value="{{ search }}" placeholder="Search captions or photo names"><button class="btn btn-primary">Search</button></form>
+        <span>{{ images|length }} photo{{ '' if images|length == 1 else 's' }}</span>
+    </div>
+    {% if collection['description'] %}<p class="collection-description">{{ collection['description'] }}</p>{% endif %}
+
+    <div class="client-photo-grid">
+        {% for image in images %}
+        <article class="client-photo" id="photo-{{ image['id'] }}">
+            <a href="{{ url_for('client_gallery.collection_photo', code=collection['collection_code'], image_id=image['id']) }}" target="_blank" class="client-photo-image">
+                <img src="{{ url_for('client_gallery.collection_photo', code=collection['collection_code'], image_id=image['id']) }}" alt="{{ image['caption'] or image['original_name'] }}" loading="lazy">
+            </a>
+            <div class="client-photo-meta">
+                <div><strong>{{ image['caption'] or 'Photo ' ~ loop.index }}</strong><small>{{ image['original_name'] }}</small></div>
+                <a class="icon-command" title="Download photo" aria-label="Download photo" href="{{ url_for('client_gallery.download_photo', code=collection['collection_code'], image_id=image['id']) }}"><i class="fas fa-download"></i></a>
+            </div>
+            <details class="photo-comments">
+                <summary><i class="far fa-comment"></i> Comments{% if comments_by_image.get(image['id']) %} ({{ comments_by_image[image['id']]|length }}){% endif %}</summary>
+                {% for comment in comments_by_image.get(image['id'], []) %}<p><strong>{{ comment['visitor_name'] }}</strong> {{ comment['comment'] }}</p>{% endfor %}
+                <form action="{{ url_for('client_gallery.comment_on_photo', code=collection['collection_code'], image_id=image['id']) }}" method="POST"><input name="comment" maxlength="2000" placeholder="Leave a note about this photo" required><button class="icon-command" title="Send comment" aria-label="Send comment"><i class="fas fa-paper-plane"></i></button></form>
+            </details>
+        </article>
+        {% else %}<div class="gallery-empty"><i class="fas fa-images"></i><h2>No matching photos</h2><p>Try a different search or contact Benjo Moments.</p></div>{% endfor %}
+    </div>
+
+    <section class="social-gallery-panel">
+        <div><p class="eyebrow">Stay Connected</p><h2>Follow Benjo Moments</h2><p>See recent work, behind-the-scenes moments, and new collections.</p></div>
+        <div class="gallery-social-links">
+            {% if settings and settings['instagram_url'] %}<a href="{{ settings['instagram_url'] }}" target="_blank" rel="noopener"><i class="fab fa-instagram"></i> Instagram</a>{% endif %}
+            {% if settings and settings['tiktok_url'] %}<a href="{{ settings['tiktok_url'] }}" target="_blank" rel="noopener"><i class="fab fa-tiktok"></i> TikTok</a>{% endif %}
+            {% if settings and settings['youtube_url'] %}<a href="{{ settings['youtube_url'] }}" target="_blank" rel="noopener"><i class="fab fa-youtube"></i> YouTube</a>{% endif %}
+            {% if settings and settings['facebook_url'] %}<a href="{{ settings['facebook_url'] }}" target="_blank" rel="noopener"><i class="fab fa-facebook"></i> Facebook</a>{% endif %}
+        </div>
+    </section>
+</main>
+{% endblock %}

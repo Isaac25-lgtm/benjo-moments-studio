@@ -142,7 +142,7 @@
 
         /* Sections */
         .section {
-            padding: 100px 0;
+            padding: 72px 0;
         }
 
         .section-dark {
@@ -449,7 +449,7 @@
 
         /* Page Header */
         .page-header {
-            padding: 150px 0 80px;
+            padding: 126px 0 56px;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
             text-align: center;
             color: white;
@@ -923,6 +923,8 @@
                             class="{% if request.endpoint == 'public.gallery' %}active{% endif %}">Gallery</a></li>
                     <li><a href="{{ url_for('public.services') }}"
                             class="{% if request.endpoint == 'public.services' %}active{% endif %}">Services</a></li>
+                    <li><a href="{{ url_for('client_gallery.collection_search') }}"
+                            class="{% if request.blueprint == 'client_gallery' %}active{% endif %}">Client Photos</a></li>
                     <li><a href="{{ url_for('public.about') }}"
                             class="{% if request.endpoint == 'public.about' %}active{% endif %}">About</a></li>
                     <li><a href="{{ url_for('public.contact') }}"
@@ -957,6 +959,7 @@
                         {% if settings and settings['facebook_url'] %}<a href="{{ settings['facebook_url'] }}" target="_blank" rel="noopener noreferrer"><i class="fab fa-facebook-f"></i></a>{% endif %}
                         {% if settings and settings['instagram_url'] %}<a href="{{ settings['instagram_url'] }}" target="_blank" rel="noopener noreferrer"><i class="fab fa-instagram"></i></a>{% endif %}
                         {% if settings and settings['youtube_url'] %}<a href="{{ settings['youtube_url'] }}" target="_blank" rel="noopener noreferrer"><i class="fab fa-youtube"></i></a>{% endif %}
+                        {% if settings and settings['tiktok_url'] %}<a href="{{ settings['tiktok_url'] }}" target="_blank" rel="noopener noreferrer"><i class="fab fa-tiktok"></i></a>{% endif %}
                         {% if settings and settings['whatsapp_number'] %}<a href="{{ whatsapp_url(settings['whatsapp_number']) }}" target="_blank" rel="noopener noreferrer"><i class="fab fa-whatsapp"></i></a>{% endif %}
                     </div>
                 </div>
@@ -965,6 +968,7 @@
                     <p><a href="{{ url_for('public.index') }}">Home</a></p>
                     <p><a href="{{ url_for('public.gallery') }}">Gallery</a></p>
                     <p><a href="{{ url_for('public.services') }}">Services</a></p>
+                    <p><a href="{{ url_for('client_gallery.collection_search') }}">Client Photos</a></p>
                     <p><a href="{{ url_for('public.contact') }}">Contact</a></p>
                 </div>
                 <div>

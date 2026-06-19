@@ -45,7 +45,7 @@ services:
       #   sync: false
       - key: UPLOAD_FOLDER
         value: /opt/render/project/data/uploads
-      # These are the authoritative production login credentials.
+      # These bootstrap the first administrator; more accounts are added in-app.
       - key: DEFAULT_ADMIN_EMAIL
         sync: false
       - key: DEFAULT_ADMIN_PASSWORD

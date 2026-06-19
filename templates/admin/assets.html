@@ -75,6 +75,7 @@
                 <th>Name</th>
                 <th>Category</th>
                 <th>Value</th>
+                <th>Linked Expenses</th>
                 <th>Supplier</th>
                 <th>Date Added</th>
                 <th>Action</th>
@@ -86,6 +87,7 @@
                 <td><strong>{{ r['name'] }}</strong></td>
                 <td>{{ r['category'] }}</td>
                 <td>UGX {{ "{:,.0f}".format(r['value']) }}</td>
+                <td class="text-danger">UGX {{ "{:,.0f}".format(r['expense_total']) }}</td>
                 <td>{{ r['supplier'] or '-' }}</td>
                 <td>{{ r['created_at'].strftime('%Y-%m-%d') if r['created_at'] else '-' }}</td>
                 <td>

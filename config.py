@@ -143,7 +143,7 @@ ALBUM_FOLDERS = {
 }
 
 # ---------------------------------------------------------------------------
-# Authoritative admin credentials
+# Bootstrap administrator credentials
 # ---------------------------------------------------------------------------
 DEFAULT_ADMIN_EMAIL = os.environ.get("DEFAULT_ADMIN_EMAIL", "admin@benjomoments.com")
 DEFAULT_ADMIN_PASSWORD = os.environ.get("DEFAULT_ADMIN_PASSWORD")

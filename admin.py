@@ -63,6 +63,7 @@ def dashboard():
     """Admin dashboard with summary statistics."""
     total_income = database.get_total_income()
     total_expenses = database.get_total_expenses()
+    outstanding_expenses = database.get_outstanding_expenses_total()
     net_profit = total_income - total_expenses
     total_pending = database.get_total_pending_balance()
     total_assets = database.get_total_asset_value()
@@ -71,6 +72,7 @@ def dashboard():
     return render_template('admin/dashboard.html',
                          total_income=total_income,
                          total_expenses=total_expenses,
+                         outstanding_expenses=outstanding_expenses,
                          net_profit=net_profit,
                          total_pending=total_pending,
                          total_assets=total_assets,
@@ -83,7 +85,10 @@ def income():
     """Income management page."""
     records = database.get_all_income()
     total = database.get_total_income()
-    return render_template('admin/income.html', records=records, total=total)
+    return render_template(
+        'admin/income.html', records=records, total=total,
+        service_catalogue=database.get_service_catalogue(),
+    )
 
 @admin.route('/income/add', methods=['POST'])
 @login_required
@@ -148,7 +153,12 @@ def expenses():
     """Expenses management page."""
     records = database.get_all_expenses()
     total = database.get_total_expenses()
-    return render_template('admin/expenses.html', records=records, total=total)
+    outstanding = database.get_outstanding_expenses_total()
+    assets = database.get_all_assets()
+    return render_template(
+        'admin/expenses.html', records=records, total=total,
+        outstanding=outstanding, assets=assets,
+    )
 
 @admin.route('/expenses/add', methods=['POST'])
 @login_required
@@ -158,6 +168,11 @@ def add_expense():
     description = request.form.get('description', '').strip()
     category = request.form.get('category', '').strip()[:100]
     amount = parse_positive_float(request.form.get('amount'))
+    asset_id = request.form.get('asset_id', type=int)
+    payment_status = request.form.get('payment_status', 'paid')
+    payee = request.form.get('payee', '').strip()[:255]
+    due_date = request.form.get('due_date') or None
+    paid_date = request.form.get('paid_date') or None
     
     if not valid_date(date):
         flash('Please provide a valid date.', 'error')
@@ -166,8 +181,14 @@ def add_expense():
     elif amount is None:
         flash('Amount must be a positive number.', 'error')
     else:
-        database.add_expense(date, description, category, amount)
-        flash('Expense record added successfully.', 'success')
+        try:
+            database.add_expense(
+                date, description, category, amount, asset_id, payment_status,
+                payee, due_date, paid_date,
+            )
+            flash('Expense record added successfully.', 'success')
+        except ValueError as exc:
+            flash(str(exc), 'error')
     
     return redirect(url_for('admin.expenses'))
 
@@ -179,6 +200,11 @@ def edit_expense(id):
     description = request.form.get('description', '').strip()
     category = request.form.get('category', '').strip()[:100]
     amount = parse_positive_float(request.form.get('amount'))
+    asset_id = request.form.get('asset_id', type=int)
+    payment_status = request.form.get('payment_status', 'paid')
+    payee = request.form.get('payee', '').strip()[:255]
+    due_date = request.form.get('due_date') or None
+    paid_date = request.form.get('paid_date') or None
 
     if not valid_date(date):
         flash('Please provide a valid date.', 'error')
@@ -187,8 +213,14 @@ def edit_expense(id):
     elif amount is None:
         flash('Amount must be a positive number.', 'error')
     else:
-        database.update_expense(id, date, description, category, amount)
-        flash('Expense record updated successfully.', 'success')
+        try:
+            database.update_expense(
+                id, date, description, category, amount, asset_id,
+                payment_status, payee, due_date, paid_date,
+            )
+            flash('Expense record updated successfully.', 'success')
+        except ValueError as exc:
+            flash(str(exc), 'error')
 
     return redirect(url_for('admin.expenses'))
 
@@ -207,7 +239,10 @@ def customers():
     """Customers management page."""
     records = database.get_all_customers()
     total_pending = database.get_total_pending_balance()
-    return render_template('admin/customers.html', records=records, total_pending=total_pending)
+    return render_template(
+        'admin/customers.html', records=records, total_pending=total_pending,
+        service_catalogue=database.get_service_catalogue(),
+    )
 
 @admin.route('/customers/add', methods=['POST'])
 @login_required
@@ -218,6 +253,7 @@ def add_customer():
     amount_paid = parse_non_negative_float(request.form.get('amount_paid', 0))
     total_amount = parse_positive_float(request.form.get('total_amount'))
     contact = request.form.get('contact', '').strip()[:255]
+    location = request.form.get('location', '').strip()[:500]
     
     if not all([name, service]):
         flash('Name and service are required.', 'error')
@@ -228,7 +264,7 @@ def add_customer():
     elif amount_paid > total_amount:
         flash('Amount paid cannot exceed total amount.', 'error')
     else:
-        database.add_customer(name, service, amount_paid, total_amount, contact)
+        database.add_customer(name, service, amount_paid, total_amount, contact, location)
         flash('Customer added successfully.', 'success')
     
     return redirect(url_for('admin.customers'))
@@ -242,6 +278,7 @@ def edit_customer(id):
     amount_paid = parse_non_negative_float(request.form.get('amount_paid', 0))
     total_amount = parse_positive_float(request.form.get('total_amount'))
     contact = request.form.get('contact', '').strip()[:255]
+    location = request.form.get('location', '').strip()[:500]
 
     if not all([name, service]):
         flash('Name and service are required.', 'error')
@@ -253,7 +290,7 @@ def edit_customer(id):
         flash('Amount paid cannot exceed total amount.', 'error')
     else:
         try:
-            database.update_customer(id, name, service, amount_paid, total_amount, contact)
+            database.update_customer(id, name, service, amount_paid, total_amount, contact, location)
             flash('Customer updated successfully.', 'success')
         except ValueError as exc:
             flash(str(exc), 'error')
@@ -537,6 +574,7 @@ def update_settings():
     facebook_url = request.form.get('facebook_url', '').strip()
     instagram_url = request.form.get('instagram_url', '').strip()
     youtube_url = request.form.get('youtube_url', '').strip()
+    tiktok_url = request.form.get('tiktok_url', '').strip()
     whatsapp_number = re.sub(r'\D', '', request.form.get('whatsapp_number', ''))
 
     if not site_name:
@@ -547,7 +585,7 @@ def update_settings():
         flash('Please provide a valid contact email address.', 'error')
         return redirect(url_for('admin.website_settings'))
 
-    social_urls = [facebook_url, instagram_url, youtube_url]
+    social_urls = [facebook_url, instagram_url, youtube_url, tiktok_url]
     if any(value and not value.startswith('https://') for value in social_urls):
         flash('Social media links must start with https://.', 'error')
         return redirect(url_for('admin.website_settings'))
@@ -566,6 +604,7 @@ def update_settings():
         facebook_url,
         instagram_url,
         youtube_url,
+        tiktok_url,
         whatsapp_number,
     )
     flash('Website settings updated successfully.', 'success')

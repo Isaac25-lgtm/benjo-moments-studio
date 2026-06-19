@@ -32,8 +32,8 @@ python app.py
 Set these Render environment variables:
 
 - `DATABASE_URL`: Neon PostgreSQL URL with `sslmode=require`
-- `DEFAULT_ADMIN_EMAIL`: authoritative manager email
-- `DEFAULT_ADMIN_PASSWORD`: authoritative manager password
+- `DEFAULT_ADMIN_EMAIL`: bootstrap administrator email
+- `DEFAULT_ADMIN_PASSWORD`: bootstrap administrator password
 - `TEST_AUTH_MODE=false`
 
 `render.yaml` runs `python -m alembic upgrade head` before each deployment.

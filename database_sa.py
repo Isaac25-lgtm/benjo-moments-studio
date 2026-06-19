@@ -17,15 +17,18 @@ from datetime import date as date_type
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import config
 from db import SessionLocal
 from models import (
-    Asset, AuditLog, ContactMessage, Customer, Expense, GalleryImage,
-    HeroImage, Income, Invoice, PricingPackage, User, WebsiteSettings,
+    Asset, AuditLog, ClientCollection, ClientCollectionImage, ContactMessage,
+    Customer, Expense, GalleryComment, GalleryDownload, GalleryImage,
+    GalleryVisitor, HeroImage, Income, Invoice, PricingPackage,
+    ProfessionalService, ServiceCategory, User, WebsiteSettings,
 )
 
 logger = logging.getLogger(__name__)
@@ -133,6 +136,12 @@ def _validate_date(value, label: str = "Date"):
         raise ValueError(f"{label} must be a valid date in YYYY-MM-DD format.")
 
 
+def _validate_optional_date(value, label: str):
+    if value in (None, ""):
+        return None
+    return _validate_date(value, label)
+
+
 # ---------------------------------------------------------------------------
 # Seed / init helpers (called from app.py on startup)
 # ---------------------------------------------------------------------------
@@ -142,7 +151,7 @@ def init_db():
 
 
 def synchronize_environment_admin():
-    """Make environment credentials the single authoritative admin login."""
+    """Create or refresh the bootstrap admin without removing other admins."""
     if not config.DEFAULT_ADMIN_PASSWORD:
         raise RuntimeError("DEFAULT_ADMIN_PASSWORD is required to synchronize the admin.")
 
@@ -173,19 +182,11 @@ def synchronize_environment_admin():
                 configured_user.password_hash = generate_password_hash(
                     config.DEFAULT_ADMIN_PASSWORD
                 )
-
-        removed = 0
-        for user in users:
-            if user is not configured_user:
-                session.delete(user)
-                removed += 1
+                configured_user.auth_version += 1
+            configured_user.is_active = True
 
         session.commit()
-        logger.info(
-            "Environment-managed admin synchronized: %s | removed_accounts=%s",
-            configured_email,
-            removed,
-        )
+        logger.info("Bootstrap administrator synchronized: %s", configured_email)
 
 
 def init_default_settings():
@@ -205,7 +206,7 @@ def init_default_settings():
                 contact_phone="0759989861 / 0778728089",
                 contact_email="info@benjomoments.com",
                 address="Carol House, Plot 40, next to Bible House, along Bombo Road, Wandegeya",
-                whatsapp_number="256759989861",
+                whatsapp_number="256759189861",
             ))
             session.commit()
             logger.info("Default website settings seeded.")
@@ -244,6 +245,246 @@ def create_default_pricing_packages():
             logger.info("Default pricing packages seeded.")
 
 
+def create_default_services():
+    """Seed the editable public service catalogue once."""
+    catalogue = [
+        (
+            "Events & Celebrations",
+            "Photography for life's milestones and gatherings.",
+            "fa-champagne-glasses",
+            "https://images.pexels.com/photos/1024993/pexels-photo-1024993.jpeg?auto=compress&cs=tinysrgb&w=900",
+            [
+                "Weddings & Introductions (Kwanjula)", "Engagements", "Birthday Parties",
+                "Baby Showers & Gender Reveals", "Graduations", "Anniversaries", "Family Reunions",
+            ],
+        ),
+        (
+            "Corporate & Business",
+            "Professional imagery for organizations, teams, and properties.",
+            "fa-building",
+            "https://images.pexels.com/photos/7648306/pexels-photo-7648306.jpeg?auto=compress&cs=tinysrgb&w=900",
+            [
+                "Corporate Events & Conferences", "Product Launches", "Company Profiles & Branding",
+                "Staff Portraits / Headshots", "Office & Workplace Photography", "Real Estate & Property",
+            ],
+        ),
+        (
+            "Religious & Community",
+            "Respectful coverage of faith, remembrance, and community life.",
+            "fa-people-group",
+            "https://images.pexels.com/photos/8815027/pexels-photo-8815027.jpeg?auto=compress&cs=tinysrgb&w=900",
+            [
+                "Church Services & Crusades", "Baptisms", "Dedications", "Funerals & Memorials",
+                "Community Outreach Programs",
+            ],
+        ),
+        (
+            "Lifestyle & Studio",
+            "Personal portraits and carefully directed studio sessions.",
+            "fa-camera-retro",
+            "https://images.pexels.com/photos/11388583/pexels-photo-11388583.jpeg?auto=compress&cs=tinysrgb&w=900",
+            [
+                "Portrait Photography", "Maternity Shoots", "Newborn & Baby Photography",
+                "Fashion & Model Portfolios", "Couple / Pre-wedding Shoots",
+            ],
+        ),
+        (
+            "Media & Creative",
+            "Story-led photography and production for artists and destinations.",
+            "fa-film",
+            "https://images.pexels.com/photos/2608519/pexels-photo-2608519.jpeg?auto=compress&cs=tinysrgb&w=900",
+            [
+                "Music Videos & Behind-the-Scenes", "Concerts & Live Performances",
+                "Documentary Photography", "Travel & Tourism", "Food Photography",
+            ],
+        ),
+        (
+            "Commercial & Marketing",
+            "Campaign-ready images built to sell products and ideas.",
+            "fa-bullhorn",
+            "https://images.pexels.com/photos/2388569/pexels-photo-2388569.jpeg?auto=compress&cs=tinysrgb&w=900",
+            [
+                "Advertising Campaigns", "E-commerce Product Photos", "Billboards & Print Ads",
+                "Social Media Content Creation",
+            ],
+        ),
+        (
+            "Additional Services",
+            "Everyday production and finishing services from the Benjo Moments team.",
+            "fa-wand-magic-sparkles",
+            "https://images.pexels.com/photos/4348404/pexels-photo-4348404.jpeg?auto=compress&cs=tinysrgb&w=900",
+            [
+                "Video Production", "Graphics Design", "Photo & Video Editing", "Photo Printing",
+                "Passport & ID Photos", "Custom Requests",
+            ],
+        ),
+    ]
+    with SessionLocal() as session:
+        if session.scalar(select(func.count()).select_from(ServiceCategory)):
+            return
+        for category_order, (name, description, icon, image_url, services) in enumerate(catalogue, 1):
+            category = ServiceCategory(
+                name=name,
+                description=description,
+                icon=icon,
+                image_url=image_url,
+                display_order=category_order,
+            )
+            category.services = [
+                ProfessionalService(name=service_name, display_order=service_order, icon="fa-camera")
+                for service_order, service_name in enumerate(services, 1)
+            ]
+            session.add(category)
+        session.commit()
+        logger.info("Default professional service catalogue seeded.")
+
+
+def _service_category_row(category: ServiceCategory, active_only: bool = False) -> _Row:
+    row = _to_row(category)
+    services = category.services
+    if active_only:
+        services = [service for service in services if service.is_active]
+    row["services"] = _to_rows(services)
+    return row
+
+
+def get_service_catalogue(active_only: bool = True) -> list[_Row]:
+    with SessionLocal() as session:
+        query = select(ServiceCategory).options(selectinload(ServiceCategory.services))
+        if active_only:
+            query = query.where(ServiceCategory.is_active == True)  # noqa: E712
+        categories = session.scalars(
+            query.order_by(ServiceCategory.display_order, ServiceCategory.id)
+        ).unique().all()
+        result = []
+        for category in categories:
+            result.append(_service_category_row(category, active_only=active_only))
+        return result
+
+
+def add_service_category(name, description, icon, image_url, display_order) -> None:
+    actor = _actor_email()
+    with SessionLocal() as session:
+        row = ServiceCategory(
+            name=str(name).strip()[:255],
+            description=str(description).strip(),
+            icon=str(icon).strip()[:100] or "fa-camera",
+            image_url=str(image_url).strip()[:1000],
+            display_order=max(0, int(display_order or 0)),
+        )
+        if not row.name:
+            raise ValueError("Category name is required.")
+        session.add(row)
+        try:
+            session.commit()
+        except IntegrityError as exc:
+            session.rollback()
+            raise ValueError("A service category with that name already exists.") from exc
+        log_audit(actor, "create", "service_category", row.id, _audit_details(name=row.name))
+
+
+def update_service_category(category_id, name, description, icon, image_url, display_order, is_active) -> None:
+    actor = _actor_email()
+    with SessionLocal() as session:
+        row = session.get(ServiceCategory, category_id)
+        if not row:
+            raise ValueError("Service category not found.")
+        normalized_name = str(name).strip()[:255]
+        if not normalized_name:
+            raise ValueError("Category name is required.")
+        duplicate = session.scalar(
+            select(ServiceCategory.id).where(
+                func.lower(ServiceCategory.name) == normalized_name.lower(),
+                ServiceCategory.id != category_id,
+            )
+        )
+        if duplicate:
+            raise ValueError("A service category with that name already exists.")
+        row.name = normalized_name
+        row.description = str(description).strip()
+        row.icon = str(icon).strip()[:100] or "fa-camera"
+        row.image_url = str(image_url).strip()[:1000]
+        row.display_order = max(0, int(display_order or 0))
+        row.is_active = bool(is_active)
+        session.commit()
+        log_audit(actor, "update", "service_category", category_id, _audit_details(name=row.name))
+
+
+def delete_service_category(category_id: int) -> None:
+    actor = _actor_email()
+    with SessionLocal() as session:
+        row = session.get(ServiceCategory, category_id)
+        if row:
+            name = row.name
+            session.delete(row)
+            session.commit()
+            log_audit(actor, "delete", "service_category", category_id, _audit_details(name=name))
+
+
+def add_professional_service(category_id, name, description, icon, display_order) -> None:
+    actor = _actor_email()
+    with SessionLocal() as session:
+        if not session.get(ServiceCategory, category_id):
+            raise ValueError("Service category not found.")
+        row = ProfessionalService(
+            category_id=category_id,
+            name=str(name).strip()[:255],
+            description=str(description).strip(),
+            icon=str(icon).strip()[:100] or "fa-camera",
+            display_order=max(0, int(display_order or 0)),
+        )
+        if not row.name:
+            raise ValueError("Service name is required.")
+        session.add(row)
+        try:
+            session.commit()
+        except IntegrityError as exc:
+            session.rollback()
+            raise ValueError("That service already exists in this category.") from exc
+        log_audit(actor, "create", "professional_service", row.id, _audit_details(name=row.name))
+
+
+def update_professional_service(service_id, category_id, name, description, icon, display_order, is_active) -> None:
+    actor = _actor_email()
+    with SessionLocal() as session:
+        row = session.get(ProfessionalService, service_id)
+        if not row:
+            raise ValueError("Service not found.")
+        if not session.get(ServiceCategory, category_id):
+            raise ValueError("Service category not found.")
+        normalized_name = str(name).strip()[:255]
+        if not normalized_name:
+            raise ValueError("Service name is required.")
+        duplicate = session.scalar(
+            select(ProfessionalService.id).where(
+                ProfessionalService.category_id == category_id,
+                func.lower(ProfessionalService.name) == normalized_name.lower(),
+                ProfessionalService.id != service_id,
+            )
+        )
+        if duplicate:
+            raise ValueError("That service already exists in this category.")
+        row.category_id = category_id
+        row.name = normalized_name
+        row.description = str(description).strip()
+        row.icon = str(icon).strip()[:100] or "fa-camera"
+        row.display_order = max(0, int(display_order or 0))
+        row.is_active = bool(is_active)
+        session.commit()
+        log_audit(actor, "update", "professional_service", service_id, _audit_details(name=row.name))
+
+
+def delete_professional_service(service_id: int) -> None:
+    actor = _actor_email()
+    with SessionLocal() as session:
+        row = session.get(ProfessionalService, service_id)
+        if row:
+            name = row.name
+            session.delete(row)
+            session.commit()
+            log_audit(actor, "delete", "professional_service", service_id, _audit_details(name=name))
+
+
 # ---------------------------------------------------------------------------
 # Users
 # ---------------------------------------------------------------------------
@@ -267,6 +508,75 @@ def get_user_by_id(user_id: int) -> Optional[_Row]:
         row = _Row(user.as_dict())
         row["password_hash"] = user.password_hash
         return row
+
+
+def get_all_users() -> list[_Row]:
+    with SessionLocal() as session:
+        return _to_rows(session.scalars(select(User).order_by(User.created_at)).all())
+
+
+def create_user(name: str, email: str, password: str) -> None:
+    name = str(name).strip()[:255]
+    email = str(email).strip().lower()[:255]
+    if not name or "@" not in email:
+        raise ValueError("A name and valid email address are required.")
+    if len(password or "") < 10:
+        raise ValueError("Password must be at least 10 characters.")
+    actor = _actor_email()
+    with SessionLocal() as session:
+        if session.scalar(select(User.id).where(func.lower(User.email) == email)):
+            raise ValueError("An administrator with that email already exists.")
+        row = User(
+            name=name,
+            email=email,
+            password_hash=generate_password_hash(password),
+            role="admin",
+            is_active=True,
+        )
+        session.add(row)
+        session.commit()
+        log_audit(actor, "create", "user", row.id, _audit_details(email=email))
+
+
+def update_user(user_id: int, name: str, email: str, is_active: bool, password: str = "") -> None:
+    name = str(name).strip()[:255]
+    email = str(email).strip().lower()[:255]
+    if not name or "@" not in email:
+        raise ValueError("A name and valid email address are required.")
+    if password and len(password) < 10:
+        raise ValueError("Password must be at least 10 characters.")
+    actor = _actor_email()
+    with SessionLocal() as session:
+        row = session.get(User, user_id)
+        if not row:
+            raise ValueError("Administrator not found.")
+        duplicate = session.scalar(
+            select(User.id).where(func.lower(User.email) == email, User.id != user_id)
+        )
+        if duplicate:
+            raise ValueError("An administrator with that email already exists.")
+        if not is_active:
+            active_count = session.scalar(
+                select(func.count()).select_from(User).where(User.is_active == True)  # noqa: E712
+            )
+            if active_count <= 1:
+                raise ValueError("The last active administrator cannot be disabled.")
+        row.name = name
+        row.email = email
+        row.is_active = bool(is_active)
+        if password:
+            row.password_hash = generate_password_hash(password)
+            row.auth_version += 1
+        session.commit()
+        log_audit(actor, "update", "user", user_id, _audit_details(email=email, active=is_active))
+
+
+def record_user_login(user_id: int) -> None:
+    with SessionLocal() as session:
+        row = session.get(User, user_id)
+        if row:
+            row.last_login_at = datetime.utcnow()
+            session.commit()
 
 
 # ---------------------------------------------------------------------------
@@ -353,38 +663,82 @@ def get_total_income() -> float:
 def get_all_expenses() -> list[_Row]:
     with SessionLocal() as session:
         rows = session.scalars(
-            select(Expense).where(Expense.is_deleted == False).order_by(Expense.date.desc())  # noqa: E712
+            select(Expense)
+            .options(selectinload(Expense.asset))
+            .where(Expense.is_deleted == False)  # noqa: E712
+            .order_by(
+                case((Expense.payment_status == "pending", 0), else_=1),
+                Expense.due_date.asc().nullslast(),
+                Expense.date.desc(),
+            )
         ).all()
         return _to_rows(rows)
 
 
-def add_expense(date, description, category, amount) -> None:
+def add_expense(
+    date, description, category, amount, asset_id=None, payment_status="paid",
+    payee="", due_date=None, paid_date=None,
+) -> None:
     amount = _validate_positive_amount(amount, "Expense amount")
     date = _validate_date(date, "Expense date")
     if not str(description).strip():
         raise ValueError("Description is required.")
     if not str(category).strip():
         raise ValueError("Category is required.")
+    if payment_status not in {"pending", "paid", "cancelled"}:
+        raise ValueError("Invalid payment status.")
+    due_date = _validate_optional_date(due_date, "Due date")
+    paid_date = _validate_optional_date(paid_date, "Paid date")
+    if payment_status == "paid" and paid_date is None:
+        paid_date = date
     actor = _actor_email()
     with SessionLocal() as session:
-        row = Expense(date=date, description=description, category=category, amount=amount)
+        if asset_id and not session.get(Asset, asset_id):
+            raise ValueError("Selected asset does not exist.")
+        row = Expense(
+            date=date,
+            description=description,
+            category=category,
+            amount=amount,
+            asset_id=asset_id or None,
+            payment_status=payment_status,
+            payee=str(payee).strip()[:255],
+            due_date=due_date,
+            paid_date=paid_date,
+        )
         session.add(row)
         session.commit()
         log_audit(actor, "create", "expense", row.id,
                   _audit_details(description=description, category=category, amount=amount))
 
 
-def update_expense(expense_id: int, date, description, category, amount) -> None:
+def update_expense(
+    expense_id: int, date, description, category, amount, asset_id=None,
+    payment_status="paid", payee="", due_date=None, paid_date=None,
+) -> None:
     amount = _validate_positive_amount(amount, "Expense amount")
     date = _validate_date(date, "Expense date")
+    if payment_status not in {"pending", "paid", "cancelled"}:
+        raise ValueError("Invalid payment status.")
+    due_date = _validate_optional_date(due_date, "Due date")
+    paid_date = _validate_optional_date(paid_date, "Paid date")
+    if payment_status == "paid" and paid_date is None:
+        paid_date = date
     actor = _actor_email()
     with SessionLocal() as session:
         row = session.get(Expense, expense_id)
         if row and not row.is_deleted:
+            if asset_id and not session.get(Asset, asset_id):
+                raise ValueError("Selected asset does not exist.")
             row.date = date
             row.description = str(description).strip()
             row.category = str(category).strip()
             row.amount = amount
+            row.asset_id = asset_id or None
+            row.payment_status = payment_status
+            row.payee = str(payee).strip()[:255]
+            row.due_date = due_date
+            row.paid_date = paid_date
             session.commit()
             log_audit(actor, "update", "expense", expense_id,
                       _audit_details(description=description, category=category, amount=amount))
@@ -416,7 +770,21 @@ def restore_expense(expense_id: int) -> None:
 def get_total_expenses() -> float:
     with SessionLocal() as session:
         total = session.scalar(
-            select(func.coalesce(func.sum(Expense.amount), 0)).where(Expense.is_deleted == False)  # noqa: E712
+            select(func.coalesce(func.sum(Expense.amount), 0)).where(
+                Expense.is_deleted == False,  # noqa: E712
+                Expense.payment_status == "paid",
+            )
+        )
+        return float(total)
+
+
+def get_outstanding_expenses_total() -> float:
+    with SessionLocal() as session:
+        total = session.scalar(
+            select(func.coalesce(func.sum(Expense.amount), 0)).where(
+                Expense.is_deleted == False,  # noqa: E712
+                Expense.payment_status == "pending",
+            )
         )
         return float(total)
 
@@ -427,7 +795,13 @@ def get_total_expenses() -> float:
 def get_all_customers() -> list[_Row]:
     with SessionLocal() as session:
         rows = session.scalars(
-            select(Customer).where(Customer.is_deleted == False).order_by(Customer.created_at.desc())  # noqa: E712
+            select(Customer)
+            .where(Customer.is_deleted == False)  # noqa: E712
+            .order_by(
+                case((Customer.amount_paid < Customer.total_amount, 0), else_=1),
+                (Customer.total_amount - Customer.amount_paid).desc(),
+                Customer.created_at.desc(),
+            )
         ).all()
         return _to_rows(rows)
 
@@ -440,7 +814,7 @@ def get_customer(customer_id: int) -> Optional[_Row]:
         return _to_row(row)
 
 
-def add_customer(name, service, amount_paid, total_amount, contact) -> None:
+def add_customer(name, service, amount_paid, total_amount, contact, location="") -> None:
     if not str(name).strip():
         raise ValueError("Customer name is required.")
     if not str(service).strip():
@@ -452,7 +826,8 @@ def add_customer(name, service, amount_paid, total_amount, contact) -> None:
     actor = _actor_email()
     with SessionLocal() as session:
         row = Customer(name=name, service=service, amount_paid=amount_paid,
-                       total_amount=total_amount, contact=contact)
+                       total_amount=total_amount, contact=contact,
+                       location=str(location).strip()[:500])
         session.add(row)
         session.commit()
         log_audit(actor, "create", "customer", row.id,
@@ -473,7 +848,7 @@ def update_customer_payment(customer_id: int, amount_paid) -> None:
                       _audit_details(amount_paid=amount_paid))
 
 
-def update_customer(customer_id: int, name, service, amount_paid, total_amount, contact) -> None:
+def update_customer(customer_id: int, name, service, amount_paid, total_amount, contact, location="") -> None:
     total_amount = _validate_positive_amount(total_amount, "Total amount")
     amount_paid = _validate_amount(amount_paid, "Amount paid")
     if amount_paid > total_amount:
@@ -509,6 +884,7 @@ def update_customer(customer_id: int, name, service, amount_paid, total_amount, 
             row.amount_paid = amount_paid
             row.total_amount = total_amount
             row.contact = str(contact).strip()
+            row.location = str(location).strip()[:500]
             session.commit()
             log_audit(actor, "update", "customer", customer_id,
                       _audit_details(name=name, service=service, total_amount=total_amount))
@@ -741,8 +1117,24 @@ def restore_invoice(invoice_id: int) -> None:
 # ---------------------------------------------------------------------------
 def get_all_assets() -> list[_Row]:
     with SessionLocal() as session:
-        rows = session.scalars(select(Asset).order_by(Asset.created_at.desc())).all()
-        return _to_rows(rows)
+        rows = session.execute(
+            select(
+                Asset,
+                func.coalesce(func.sum(Expense.amount), 0).label("expense_total"),
+            )
+            .outerjoin(
+                Expense,
+                (Expense.asset_id == Asset.id) & (Expense.is_deleted == False),  # noqa: E712
+            )
+            .group_by(Asset.id)
+            .order_by(Asset.created_at.desc())
+        ).all()
+        result = []
+        for asset, expense_total in rows:
+            item = _to_row(asset)
+            item["expense_total"] = float(expense_total)
+            result.append(item)
+        return result
 
 
 def add_asset(name, category, value, supplier) -> None:
@@ -804,7 +1196,7 @@ def get_all_gallery_images() -> list[_Row]:
         return _to_rows(rows)
 
 
-def get_published_gallery_images(album=None, limit=None) -> list[_Row]:
+def get_published_gallery_images(album=None, limit=None, search="") -> list[_Row]:
     with SessionLocal() as session:
         q = select(GalleryImage).where(
             GalleryImage.published == True,  # noqa: E712
@@ -812,6 +1204,11 @@ def get_published_gallery_images(album=None, limit=None) -> list[_Row]:
         )
         if album:
             q = q.where(GalleryImage.album == album)
+        if search:
+            pattern = f"%{str(search).strip()}%"
+            q = q.where(
+                or_(GalleryImage.caption.ilike(pattern), GalleryImage.album.ilike(pattern))
+            )
         q = q.order_by(GalleryImage.uploaded_at.desc())
         if limit is not None:
             q = q.limit(max(0, int(limit)))
@@ -888,6 +1285,7 @@ def update_website_settings(
     facebook_url,
     instagram_url,
     youtube_url,
+    tiktok_url,
     whatsapp_number,
 ) -> None:
     actor = _actor_email()
@@ -904,6 +1302,7 @@ def update_website_settings(
             row.facebook_url = facebook_url
             row.instagram_url = instagram_url
             row.youtube_url = youtube_url
+            row.tiktok_url = tiktok_url
             row.whatsapp_number = whatsapp_number
             row.updated_at = datetime.utcnow()
             row_id = row.id
@@ -913,7 +1312,8 @@ def update_website_settings(
                 about_text=about_text, contact_phone=contact_phone,
                 contact_email=contact_email, address=address,
                 facebook_url=facebook_url, instagram_url=instagram_url,
-                youtube_url=youtube_url, whatsapp_number=whatsapp_number,
+                youtube_url=youtube_url, tiktok_url=tiktok_url,
+                whatsapp_number=whatsapp_number,
             )
             session.add(new_row)
             session.flush()
@@ -1131,6 +1531,343 @@ def delete_hero_image(image_id: int) -> Optional[_Row]:
                       _audit_details(deleted_by=actor, filename=result["filename"]))
             return result
         return None
+
+
+# ---------------------------------------------------------------------------
+# Private client collections
+# ---------------------------------------------------------------------------
+def generate_collection_code(title: str) -> str:
+    base = "".join(ch for ch in str(title).upper() if ch.isalnum())[:12] or "GALLERY"
+    return f"{base}-{secrets.token_hex(3).upper()}"
+
+
+def get_all_client_collections() -> list[_Row]:
+    with SessionLocal() as session:
+        image_count = (
+            select(
+                ClientCollectionImage.collection_id,
+                func.count(ClientCollectionImage.id).label("image_count"),
+            )
+            .group_by(ClientCollectionImage.collection_id)
+            .subquery()
+        )
+        download_count = (
+            select(
+                GalleryDownload.collection_id,
+                func.count(GalleryDownload.id).label("download_count"),
+            )
+            .group_by(GalleryDownload.collection_id)
+            .subquery()
+        )
+        rows = session.execute(
+            select(
+                ClientCollection,
+                func.coalesce(image_count.c.image_count, 0),
+                func.coalesce(download_count.c.download_count, 0),
+            )
+            .outerjoin(image_count, image_count.c.collection_id == ClientCollection.id)
+            .outerjoin(download_count, download_count.c.collection_id == ClientCollection.id)
+            .order_by(ClientCollection.created_at.desc())
+        ).all()
+        result = []
+        for collection, images, downloads in rows:
+            item = _to_row(collection)
+            item["image_count"] = int(images)
+            item["download_count"] = int(downloads)
+            result.append(item)
+        return result
+
+
+def get_client_collection(collection_id: int) -> Optional[_Row]:
+    with SessionLocal() as session:
+        row = session.scalar(
+            select(ClientCollection)
+            .options(selectinload(ClientCollection.images))
+            .where(ClientCollection.id == collection_id)
+        )
+        if not row:
+            return None
+        result = _to_row(row)
+        result["images"] = _to_rows(row.images)
+        return result
+
+
+def get_client_collection_by_code(code: str, active_only: bool = False) -> Optional[_Row]:
+    with SessionLocal() as session:
+        query = select(ClientCollection).where(
+            func.upper(ClientCollection.collection_code) == str(code).strip().upper()
+        )
+        if active_only:
+            query = query.where(ClientCollection.is_active == True)  # noqa: E712
+        row = session.scalar(query)
+        if not row:
+            return None
+        result = _to_row(row)
+        result["pin_hash"] = row.pin_hash
+        return result
+
+
+def add_client_collection(
+    title, client_name, client_email, description, location, event_date,
+    expires_at, pin, collection_code=None, created_by_id=None,
+) -> _Row:
+    title = str(title).strip()[:255]
+    client_name = str(client_name).strip()[:255]
+    pin = str(pin).strip()
+    if not title or not client_name:
+        raise ValueError("Collection title and client name are required.")
+    if len(pin) < 4:
+        raise ValueError("Collection PIN must contain at least 4 characters.")
+    code = str(collection_code or generate_collection_code(title)).strip().upper()[:80]
+    actor = _actor_email()
+    with SessionLocal() as session:
+        row = ClientCollection(
+            title=title,
+            collection_code=code,
+            client_name=client_name,
+            client_email=str(client_email).strip().lower()[:255],
+            description=str(description).strip(),
+            location=str(location).strip()[:500],
+            event_date=_validate_optional_date(event_date, "Event date"),
+            expires_at=(
+                datetime.strptime(str(expires_at), "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+                if expires_at else None
+            ),
+            pin_hash=generate_password_hash(pin),
+            created_by_id=created_by_id,
+        )
+        session.add(row)
+        try:
+            session.commit()
+        except IntegrityError as exc:
+            session.rollback()
+            raise ValueError("That collection code is already in use.") from exc
+        log_audit(actor, "create", "client_collection", row.id, _audit_details(code=code, title=title))
+        return _to_row(row)
+
+
+def update_client_collection(
+    collection_id, title, client_name, client_email, description, location,
+    event_date, expires_at, is_active,
+) -> None:
+    actor = _actor_email()
+    with SessionLocal() as session:
+        row = session.get(ClientCollection, collection_id)
+        if not row:
+            raise ValueError("Client collection not found.")
+        row.title = str(title).strip()[:255]
+        row.client_name = str(client_name).strip()[:255]
+        row.client_email = str(client_email).strip().lower()[:255]
+        row.description = str(description).strip()
+        row.location = str(location).strip()[:500]
+        row.event_date = _validate_optional_date(event_date, "Event date")
+        row.expires_at = (
+            datetime.strptime(str(expires_at), "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+            if expires_at else None
+        )
+        row.is_active = bool(is_active)
+        row.updated_at = datetime.utcnow()
+        session.commit()
+        log_audit(actor, "update", "client_collection", collection_id, _audit_details(title=row.title))
+
+
+def reset_client_collection_pin(collection_id: int, pin: str) -> None:
+    if len(str(pin).strip()) < 4:
+        raise ValueError("Collection PIN must contain at least 4 characters.")
+    actor = _actor_email()
+    with SessionLocal() as session:
+        row = session.get(ClientCollection, collection_id)
+        if not row:
+            raise ValueError("Client collection not found.")
+        row.pin_hash = generate_password_hash(str(pin).strip())
+        row.updated_at = datetime.utcnow()
+        session.commit()
+        log_audit(actor, "reset_pin", "client_collection", collection_id, _audit_details())
+
+
+def delete_client_collection(collection_id: int) -> Optional[_Row]:
+    actor = _actor_email()
+    with SessionLocal() as session:
+        row = session.scalar(
+            select(ClientCollection)
+            .options(selectinload(ClientCollection.images))
+            .where(ClientCollection.id == collection_id)
+        )
+        if not row:
+            return None
+        result = _to_row(row)
+        result["filenames"] = [image.filename for image in row.images]
+        session.delete(row)
+        session.commit()
+        log_audit(actor, "delete", "client_collection", collection_id, _audit_details(title=row.title))
+        return result
+
+
+def add_client_collection_image(collection_id, filename, original_name, caption="", display_order=0) -> None:
+    actor = _actor_email()
+    with SessionLocal() as session:
+        if not session.get(ClientCollection, collection_id):
+            raise ValueError("Client collection not found.")
+        row = ClientCollectionImage(
+            collection_id=collection_id,
+            filename=filename,
+            original_name=str(original_name).strip()[:255],
+            caption=str(caption).strip()[:1000],
+            display_order=max(0, int(display_order or 0)),
+        )
+        session.add(row)
+        session.commit()
+        log_audit(actor, "create", "client_collection_image", row.id, _audit_details(collection_id=collection_id))
+
+
+def get_client_collection_image(image_id: int) -> Optional[_Row]:
+    with SessionLocal() as session:
+        return _to_row(session.get(ClientCollectionImage, image_id))
+
+
+def delete_client_collection_image(image_id: int) -> Optional[_Row]:
+    actor = _actor_email()
+    with SessionLocal() as session:
+        row = session.get(ClientCollectionImage, image_id)
+        if not row:
+            return None
+        result = _to_row(row)
+        session.delete(row)
+        session.commit()
+        log_audit(actor, "delete", "client_collection_image", image_id, _audit_details(collection_id=result["collection_id"]))
+        return result
+
+
+def unlock_client_collection(code: str, email: str, name: str, pin: str) -> Optional[_Row]:
+    email = str(email).strip().lower()[:255]
+    if "@" not in email:
+        raise ValueError("A valid email address is required.")
+    with SessionLocal() as session:
+        collection = session.scalar(
+            select(ClientCollection).where(
+                func.upper(ClientCollection.collection_code) == str(code).strip().upper(),
+                ClientCollection.is_active == True,  # noqa: E712
+            )
+        )
+        if not collection or (collection.expires_at and collection.expires_at < datetime.utcnow()):
+            return None
+        if not check_password_hash(collection.pin_hash, str(pin)):
+            return None
+        visitor = session.scalar(
+            select(GalleryVisitor).where(
+                GalleryVisitor.collection_id == collection.id,
+                func.lower(GalleryVisitor.email) == email,
+            )
+        )
+        if visitor:
+            visitor.name = str(name).strip()[:255] or visitor.name
+            visitor.last_accessed_at = datetime.utcnow()
+        else:
+            visitor = GalleryVisitor(
+                collection_id=collection.id,
+                email=email,
+                name=str(name).strip()[:255],
+            )
+            session.add(visitor)
+        session.commit()
+        result = _to_row(collection)
+        result["visitor_id"] = visitor.id
+        return result
+
+
+def get_collection_images_for_visitor(collection_id: int, search: str = "") -> list[_Row]:
+    with SessionLocal() as session:
+        query = select(ClientCollectionImage).where(ClientCollectionImage.collection_id == collection_id)
+        search = str(search).strip()
+        if search:
+            pattern = f"%{search}%"
+            query = query.where(
+                or_(
+                    ClientCollectionImage.caption.ilike(pattern),
+                    ClientCollectionImage.original_name.ilike(pattern),
+                )
+            )
+        rows = session.scalars(
+            query.order_by(ClientCollectionImage.display_order, ClientCollectionImage.id)
+        ).all()
+        return _to_rows(rows)
+
+
+def add_gallery_download(collection_id, visitor_id, image_id=None, download_type="image") -> None:
+    with SessionLocal() as session:
+        session.add(GalleryDownload(
+            collection_id=collection_id,
+            image_id=image_id,
+            visitor_id=visitor_id,
+            download_type=download_type,
+            ip_address=_client_ip()[:64],
+        ))
+        session.commit()
+
+
+def add_gallery_comment(image_id: int, visitor_id: int, comment: str) -> None:
+    comment = str(comment).strip()[:2000]
+    if not comment:
+        raise ValueError("Comment cannot be empty.")
+    with SessionLocal() as session:
+        image = session.get(ClientCollectionImage, image_id)
+        visitor = session.get(GalleryVisitor, visitor_id)
+        if not image or not visitor or visitor.collection_id != image.collection_id:
+            raise ValueError("The photo is not available in this collection.")
+        session.add(GalleryComment(image_id=image_id, visitor_id=visitor_id, comment=comment))
+        session.commit()
+
+
+def get_gallery_comments(collection_id: int) -> list[_Row]:
+    with SessionLocal() as session:
+        rows = session.execute(
+            select(
+                GalleryComment,
+                GalleryVisitor.email,
+                GalleryVisitor.name,
+                ClientCollectionImage.original_name,
+            )
+            .join(GalleryVisitor, GalleryVisitor.id == GalleryComment.visitor_id)
+            .join(ClientCollectionImage, ClientCollectionImage.id == GalleryComment.image_id)
+            .where(ClientCollectionImage.collection_id == collection_id)
+            .order_by(GalleryComment.created_at.desc())
+        ).all()
+        result = []
+        for comment, email, visitor_name, filename in rows:
+            item = _to_row(comment)
+            item["visitor_email"] = email
+            item["visitor_name"] = visitor_name or "Guest"
+            item["image_name"] = filename
+            result.append(item)
+        return result
+
+
+def get_collection_activity(collection_id: int) -> dict:
+    with SessionLocal() as session:
+        visitors = session.scalars(
+            select(GalleryVisitor)
+            .where(GalleryVisitor.collection_id == collection_id)
+            .order_by(GalleryVisitor.last_accessed_at.desc())
+        ).all()
+        downloads = session.execute(
+            select(GalleryDownload, GalleryVisitor.email, ClientCollectionImage.original_name)
+            .outerjoin(GalleryVisitor, GalleryVisitor.id == GalleryDownload.visitor_id)
+            .outerjoin(ClientCollectionImage, ClientCollectionImage.id == GalleryDownload.image_id)
+            .where(GalleryDownload.collection_id == collection_id)
+            .order_by(GalleryDownload.downloaded_at.desc())
+            .limit(200)
+        ).all()
+        download_rows = []
+        for download, email, image_name in downloads:
+            item = _to_row(download)
+            item["visitor_email"] = email
+            item["image_name"] = image_name
+            download_rows.append(item)
+        return {
+            "visitors": _to_rows(visitors),
+            "downloads": download_rows,
+            "comments": get_gallery_comments(collection_id),
+        }
 
 
 # ---------------------------------------------------------------------------

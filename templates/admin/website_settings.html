@@ -101,10 +101,16 @@
                     placeholder="https://youtube.com/@your-channel">
             </div>
             <div class="form-group">
+                <label for="tiktok_url">TikTok URL</label>
+                <input type="url" id="tiktok_url" name="tiktok_url"
+                    value="{{ settings['tiktok_url'] if settings and settings['tiktok_url'] else '' }}"
+                    placeholder="https://tiktok.com/@your-page">
+            </div>
+            <div class="form-group">
                 <label for="whatsapp_number">WhatsApp Number <small style="color: #718096;">(Include country code)</small></label>
                 <input type="text" id="whatsapp_number" name="whatsapp_number"
                     value="{{ settings['whatsapp_number'] if settings and settings['whatsapp_number'] else '' }}"
-                    placeholder="256759989861">
+                    placeholder="256759189861">
             </div>
         </div>
 

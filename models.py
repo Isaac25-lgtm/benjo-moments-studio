@@ -9,7 +9,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     Boolean, CheckConstraint, Column, Date, DateTime, ForeignKey,
-    Index, Integer, Numeric, String, Text, func,
+    Index, Integer, Numeric, String, Text, UniqueConstraint, func,
 )
 from sqlalchemy.orm import DeclarativeBase, relationship
 
@@ -32,6 +32,9 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False)
     password_hash = Column(Text, nullable=False)
     role = Column(String(50), nullable=False, default="admin")
+    is_active = Column(Boolean, nullable=False, default=True)
+    auth_version = Column(Integer, nullable=False, default=1)
+    last_login_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     def as_dict(self):
@@ -40,6 +43,9 @@ class User(Base):
             "name": self.name,
             "email": self.email,
             "role": self.role,
+            "is_active": self.is_active,
+            "auth_version": self.auth_version,
+            "last_login_at": self.last_login_at,
             "created_at": self.created_at,
         }
 
@@ -89,7 +95,13 @@ class Expense(Base):
     __tablename__ = "expenses"
     __table_args__ = (
         CheckConstraint("amount > 0", name="ck_expenses_amount_positive"),
+        CheckConstraint(
+            "payment_status IN ('pending', 'paid', 'cancelled')",
+            name="ck_expenses_payment_status",
+        ),
         Index("ix_expenses_date", "date"),
+        Index("ix_expenses_asset_active", "asset_id", "is_deleted"),
+        Index("ix_expenses_payment_status", "payment_status", "due_date"),
     )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -97,10 +109,17 @@ class Expense(Base):
     description = Column(Text, nullable=False)
     category = Column(String(100), nullable=False)
     amount = Column(Numeric(14, 2), nullable=False)
+    asset_id = Column(Integer, ForeignKey("assets.id", ondelete="SET NULL"), nullable=True)
+    payment_status = Column(String(20), nullable=False, default="paid")
+    payee = Column(String(255), nullable=True)
+    due_date = Column(Date, nullable=True)
+    paid_date = Column(Date, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     # Soft delete
     is_deleted = Column(Boolean, nullable=False, default=False)
     deleted_at = Column(DateTime, nullable=True)
+
+    asset = relationship("Asset", back_populates="expenses")
 
     def as_dict(self):
         return {
@@ -109,6 +128,12 @@ class Expense(Base):
             "description": self.description,
             "category": self.category,
             "amount": float(self.amount),
+            "asset_id": self.asset_id,
+            "asset_name": self.asset.name if self.asset else None,
+            "payment_status": self.payment_status,
+            "payee": self.payee,
+            "due_date": self.due_date,
+            "paid_date": self.paid_date,
             "created_at": self.created_at,
         }
 
@@ -130,6 +155,7 @@ class Customer(Base):
     amount_paid = Column(Numeric(14, 2), nullable=False, default=0)
     total_amount = Column(Numeric(14, 2), nullable=False)
     contact = Column(String(255), nullable=True)
+    location = Column(String(500), nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     # Soft delete
     is_deleted = Column(Boolean, nullable=False, default=False)
@@ -147,6 +173,7 @@ class Customer(Base):
             "amount_paid": float(self.amount_paid),
             "total_amount": float(self.total_amount),
             "contact": self.contact,
+            "location": self.location,
             "created_at": self.created_at,
         }
 
@@ -208,6 +235,8 @@ class Asset(Base):
     supplier = Column(String(255), nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
+    expenses = relationship("Expense", back_populates="asset", passive_deletes=True)
+
     def as_dict(self):
         return {
             "id": self.id,
@@ -251,6 +280,184 @@ class GalleryImage(Base):
 
 
 # ---------------------------------------------------------------------------
+# Private client delivery galleries
+# ---------------------------------------------------------------------------
+class ClientCollection(Base):
+    __tablename__ = "client_collections"
+    __table_args__ = (
+        Index("ix_client_collections_active", "is_active", "event_date"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    title = Column(String(255), nullable=False)
+    collection_code = Column(String(80), unique=True, nullable=False)
+    client_name = Column(String(255), nullable=False)
+    client_email = Column(String(255), nullable=True)
+    description = Column(Text, nullable=True)
+    location = Column(String(500), nullable=True)
+    event_date = Column(Date, nullable=True)
+    pin_hash = Column(Text, nullable=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+    expires_at = Column(DateTime, nullable=True)
+    created_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    images = relationship(
+        "ClientCollectionImage",
+        back_populates="collection",
+        cascade="all, delete-orphan",
+        order_by="ClientCollectionImage.display_order, ClientCollectionImage.id",
+    )
+
+    def as_dict(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "collection_code": self.collection_code,
+            "client_name": self.client_name,
+            "client_email": self.client_email,
+            "description": self.description,
+            "location": self.location,
+            "event_date": self.event_date,
+            "is_active": self.is_active,
+            "expires_at": self.expires_at,
+            "created_by_id": self.created_by_id,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        }
+
+
+class ClientCollectionImage(Base):
+    __tablename__ = "client_collection_images"
+    __table_args__ = (
+        Index("ix_client_collection_images_collection", "collection_id", "display_order"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    collection_id = Column(
+        Integer,
+        ForeignKey("client_collections.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    filename = Column(String(255), nullable=False)
+    original_name = Column(String(255), nullable=False)
+    caption = Column(Text, nullable=True)
+    display_order = Column(Integer, nullable=False, default=0)
+    uploaded_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    collection = relationship("ClientCollection", back_populates="images")
+
+    def as_dict(self):
+        return {
+            "id": self.id,
+            "collection_id": self.collection_id,
+            "filename": self.filename,
+            "original_name": self.original_name,
+            "caption": self.caption,
+            "display_order": self.display_order,
+            "uploaded_at": self.uploaded_at,
+        }
+
+
+class GalleryVisitor(Base):
+    __tablename__ = "gallery_visitors"
+    __table_args__ = (
+        UniqueConstraint("collection_id", "email", name="uq_gallery_visitor_collection_email"),
+        Index("ix_gallery_visitors_collection", "collection_id", "last_accessed_at"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    collection_id = Column(
+        Integer,
+        ForeignKey("client_collections.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    email = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=True)
+    first_accessed_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    last_accessed_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    def as_dict(self):
+        return {
+            "id": self.id,
+            "collection_id": self.collection_id,
+            "email": self.email,
+            "name": self.name,
+            "first_accessed_at": self.first_accessed_at,
+            "last_accessed_at": self.last_accessed_at,
+        }
+
+
+class GalleryDownload(Base):
+    __tablename__ = "gallery_downloads"
+    __table_args__ = (
+        Index("ix_gallery_downloads_collection", "collection_id", "downloaded_at"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    collection_id = Column(
+        Integer,
+        ForeignKey("client_collections.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    image_id = Column(
+        Integer,
+        ForeignKey("client_collection_images.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    visitor_id = Column(
+        Integer,
+        ForeignKey("gallery_visitors.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    download_type = Column(String(20), nullable=False, default="image")
+    ip_address = Column(String(64), nullable=True)
+    downloaded_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    def as_dict(self):
+        return {
+            "id": self.id,
+            "collection_id": self.collection_id,
+            "image_id": self.image_id,
+            "visitor_id": self.visitor_id,
+            "download_type": self.download_type,
+            "ip_address": self.ip_address,
+            "downloaded_at": self.downloaded_at,
+        }
+
+
+class GalleryComment(Base):
+    __tablename__ = "gallery_comments"
+    __table_args__ = (
+        Index("ix_gallery_comments_image", "image_id", "created_at"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    image_id = Column(
+        Integer,
+        ForeignKey("client_collection_images.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    visitor_id = Column(
+        Integer,
+        ForeignKey("gallery_visitors.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    comment = Column(Text, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    def as_dict(self):
+        return {
+            "id": self.id,
+            "image_id": self.image_id,
+            "visitor_id": self.visitor_id,
+            "comment": self.comment,
+            "created_at": self.created_at,
+        }
+
+
+# ---------------------------------------------------------------------------
 # Website Settings (singleton row)
 # ---------------------------------------------------------------------------
 class WebsiteSettings(Base):
@@ -267,7 +474,8 @@ class WebsiteSettings(Base):
     facebook_url = Column(String(500), nullable=True)
     instagram_url = Column(String(500), nullable=True)
     youtube_url = Column(String(500), nullable=True)
-    whatsapp_number = Column(String(30), nullable=True, default="256759989861")
+    tiktok_url = Column(String(500), nullable=True)
+    whatsapp_number = Column(String(30), nullable=True, default="256759189861")
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def as_dict(self):
@@ -283,6 +491,7 @@ class WebsiteSettings(Base):
             "facebook_url": self.facebook_url,
             "instagram_url": self.instagram_url,
             "youtube_url": self.youtube_url,
+            "tiktok_url": self.tiktok_url,
             "whatsapp_number": self.whatsapp_number,
             "updated_at": self.updated_at,
         }
@@ -371,6 +580,79 @@ class PricingPackage(Base):
             "icon": self.icon,
             "features": self.features,
             "is_featured": self.is_featured,
+            "display_order": self.display_order,
+            "is_active": self.is_active,
+            "created_at": self.created_at,
+        }
+
+
+# ---------------------------------------------------------------------------
+# Editable public service catalogue
+# ---------------------------------------------------------------------------
+class ServiceCategory(Base):
+    __tablename__ = "service_categories"
+    __table_args__ = (
+        CheckConstraint("display_order >= 0", name="ck_service_category_order_nonnegative"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(255), unique=True, nullable=False)
+    description = Column(Text, nullable=True)
+    icon = Column(String(100), nullable=False, default="fa-camera")
+    image_url = Column(String(1000), nullable=True)
+    display_order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    services = relationship(
+        "ProfessionalService",
+        back_populates="category",
+        cascade="all, delete-orphan",
+        order_by="ProfessionalService.display_order, ProfessionalService.id",
+    )
+
+    def as_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "icon": self.icon,
+            "image_url": self.image_url,
+            "display_order": self.display_order,
+            "is_active": self.is_active,
+            "created_at": self.created_at,
+        }
+
+
+class ProfessionalService(Base):
+    __tablename__ = "professional_services"
+    __table_args__ = (
+        UniqueConstraint("category_id", "name", name="uq_service_category_name"),
+        CheckConstraint("display_order >= 0", name="ck_professional_service_order_nonnegative"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    category_id = Column(
+        Integer,
+        ForeignKey("service_categories.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    icon = Column(String(100), nullable=False, default="fa-camera")
+    display_order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    category = relationship("ServiceCategory", back_populates="services")
+
+    def as_dict(self):
+        return {
+            "id": self.id,
+            "category_id": self.category_id,
+            "name": self.name,
+            "description": self.description,
+            "icon": self.icon,
             "display_order": self.display_order,
             "is_active": self.is_active,
             "created_at": self.created_at,

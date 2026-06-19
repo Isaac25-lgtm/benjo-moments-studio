@@ -31,6 +31,11 @@
         <div class="value">UGX {{ "{:,.0f}".format(total_expenses) }}</div>
         <small class="text-muted">All money spent on business</small>
     </div>
+    <div class="stat-card">
+        <h3><i class="fas fa-receipt"></i> Unpaid Expenses</h3>
+        <div class="value text-danger">UGX {{ "{:,.0f}".format(outstanding_expenses) }}</div>
+        <small class="text-muted">Bills still awaiting payment</small>
+    </div>
     <div class="stat-card profit">
         <h3><i class="fas fa-chart-line"></i> Net Profit</h3>
         <div class="value {% if net_profit >= 0 %}text-success{% else %}text-danger{% endif %}">

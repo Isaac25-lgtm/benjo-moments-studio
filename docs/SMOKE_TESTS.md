@@ -168,3 +168,47 @@ Mark each ✅ pass / ❌ fail with notes.
 | ENV4 | `DATABASE_URL` set to PostgreSQL | App connects to PostgreSQL |
 | ENV5 | `DATABASE_URL` unset | App raises `RuntimeError` at startup |
 | ENV6 | `alembic upgrade head` on fresh DB | All tables created successfully |
+
+---
+
+## Administrators
+
+| # | Action | Expected Result |
+|---|--------|-----------------|
+| U1 | Create a second administrator | New account can log in separately |
+| U2 | Open all manager sections as Admin 2 | Same access as Admin 1 |
+| U3 | Reset an administrator password | Old sessions are invalidated |
+| U4 | Disable an administrator | Account can no longer log in |
+| U5 | Disable the last active administrator | Request is rejected |
+
+---
+
+## Private Client Delivery
+
+| # | Action | Expected Result |
+|---|--------|-----------------|
+| CG1 | Create collection without a code/PIN | Unique code and PIN are generated and shown once |
+| CG2 | Upload valid photos | Photos appear in the private collection only |
+| CG3 | Open collection with wrong PIN | Access is rejected |
+| CG4 | Open collection with email and correct PIN | Client sees only that collection |
+| CG5 | Search inside collection | Caption/filename results are filtered |
+| CG6 | Download one photo | Original downloads and activity is logged |
+| CG7 | Download all | ZIP downloads and activity is logged |
+| CG8 | Leave a photo comment | Comment appears in gallery and admin activity |
+| CG9 | Lock or expire collection | Client access is denied |
+| CG10 | Reset collection PIN | Old PIN stops working |
+
+---
+
+## Operations Additions
+
+| # | Action | Expected Result |
+|---|--------|-----------------|
+| O1 | Type a custom income category | Custom text is saved |
+| O2 | Type a custom expense category | Custom text is saved |
+| O3 | Add pending expense | It appears above paid expenses |
+| O4 | Link expense to asset | Expense total appears on that asset |
+| O5 | Add unpaid and paid customers | Unpaid customer appears first |
+| O6 | Add customer venue/location | Location appears in customer list |
+| O7 | Edit service category/icon | Homepage, services page, and forms update |
+| O8 | Open committee inquiry | WhatsApp targets `0759 189 861` |

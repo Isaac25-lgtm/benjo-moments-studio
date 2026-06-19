@@ -1,0 +1,23 @@
+{% extends 'public/base.html' %}
+{% block title %}{{ collection['title'] }} - Private Gallery{% endblock %}
+{% block extra_styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/client-gallery.css') }}">{% endblock %}
+{% block content %}
+<section class="client-search-shell">
+    <div class="client-search-panel">
+        <div class="client-icon"><i class="fas fa-lock"></i></div>
+        <p class="eyebrow">Private Collection</p>
+        <h1>{{ collection['title'] }}</h1>
+        <p>{{ collection['client_name'] }}{% if collection['event_date'] %} · {{ collection['event_date'].strftime('%d %B %Y') }}{% endif %}</p>
+        {% if expired %}<div class="access-notice">This collection has expired. Contact Benjo Moments for renewed access.</div>
+        {% else %}
+        <form method="POST" class="unlock-form">
+            <div><label for="name">Your name</label><input id="name" name="name" maxlength="255" required></div>
+            <div><label for="email">Email address</label><input id="email" type="email" name="email" maxlength="255" required></div>
+            <div><label for="pin">Collection PIN</label><input id="pin" type="password" name="pin" minlength="4" autocomplete="one-time-code" required></div>
+            <button class="btn btn-primary" type="submit"><i class="fas fa-unlock"></i> Open Collection</button>
+        </form>
+        <p class="privacy-note">Your email is recorded for collection security and download history.</p>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
