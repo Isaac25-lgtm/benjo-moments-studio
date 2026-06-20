@@ -1340,10 +1340,57 @@ def get_expenses_by_date_range(start_date, end_date) -> list[_Row]:
     with SessionLocal() as session:
         rows = session.scalars(
             select(Expense)
+            .options(selectinload(Expense.asset))
             .where(Expense.is_deleted == False, Expense.date.between(start_date, end_date))  # noqa: E712
             .order_by(Expense.date.desc())
         ).all()
         return _to_rows(rows)
+
+
+def get_financial_report(start_date, end_date, detail_limit: int = 500) -> _Row:
+    """Return database-calculated totals and bounded report detail rows."""
+    detail_limit = max(1, min(int(detail_limit), 1000))
+    income_filter = (
+        Income.is_deleted == False,  # noqa: E712
+        Income.date.between(start_date, end_date),
+    )
+    expense_filter = (
+        Expense.is_deleted == False,  # noqa: E712
+        Expense.date.between(start_date, end_date),
+    )
+
+    with SessionLocal() as session:
+        total_income, income_count = session.execute(
+            select(func.coalesce(func.sum(Income.amount), 0), func.count(Income.id))
+            .where(*income_filter)
+        ).one()
+        total_expenses, expense_count = session.execute(
+            select(func.coalesce(func.sum(Expense.amount), 0), func.count(Expense.id))
+            .where(*expense_filter)
+        ).one()
+        income_rows = session.scalars(
+            select(Income)
+            .where(*income_filter)
+            .order_by(Income.date.desc(), Income.id.desc())
+            .limit(detail_limit)
+        ).all()
+        expense_rows = session.scalars(
+            select(Expense)
+            .options(selectinload(Expense.asset))
+            .where(*expense_filter)
+            .order_by(Expense.date.desc(), Expense.id.desc())
+            .limit(detail_limit)
+        ).all()
+
+        return _Row({
+            "income_records": _to_rows(income_rows),
+            "expense_records": _to_rows(expense_rows),
+            "total_income": total_income,
+            "total_expenses": total_expenses,
+            "income_count": int(income_count),
+            "expense_count": int(expense_count),
+            "detail_limit": detail_limit,
+        })
 
 
 def get_recent_transactions(limit: int = 10) -> list[_Row]:

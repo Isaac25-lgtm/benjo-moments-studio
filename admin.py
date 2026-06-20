@@ -438,39 +438,35 @@ def reports():
     """Reports page with date filtering."""
     start_date = request.args.get('start_date', '')
     end_date = request.args.get('end_date', '')
-    
+    report = {
+        'income_records': [],
+        'expense_records': [],
+        'total_income': 0,
+        'total_expenses': 0,
+        'income_count': 0,
+        'expense_count': 0,
+        'detail_limit': 500,
+    }
+
     if start_date and end_date:
         if not valid_date(start_date) or not valid_date(end_date):
             flash('Please provide valid start and end dates.', 'error')
-            income_records = []
-            expense_records = []
-            total_income = 0
-            total_expenses = 0
         elif start_date > end_date:
             flash('Start date cannot be after end date.', 'error')
-            income_records = []
-            expense_records = []
-            total_income = 0
-            total_expenses = 0
         else:
-            income_records = database.get_income_by_date_range(start_date, end_date)
-            expense_records = database.get_expenses_by_date_range(start_date, end_date)
-            total_income = sum(r['amount'] for r in income_records)
-            total_expenses = sum(r['amount'] for r in expense_records)
-    else:
-        income_records = []
-        expense_records = []
-        total_income = 0
-        total_expenses = 0
-    
-    net_profit = total_income - total_expenses
-    
+            report = database.get_financial_report(start_date, end_date)
+
+    net_profit = report['total_income'] - report['total_expenses']
+
     return render_template('admin/reports.html',
-                         income_records=income_records,
-                         expense_records=expense_records,
-                         total_income=total_income,
-                         total_expenses=total_expenses,
+                         income_records=report['income_records'],
+                         expense_records=report['expense_records'],
+                         total_income=report['total_income'],
+                         total_expenses=report['total_expenses'],
                          net_profit=net_profit,
+                         income_count=report['income_count'],
+                         expense_count=report['expense_count'],
+                         detail_limit=report['detail_limit'],
                          start_date=start_date,
                          end_date=end_date)
 

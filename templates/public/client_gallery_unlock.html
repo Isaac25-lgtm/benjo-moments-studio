@@ -2,7 +2,11 @@
 {% block title %}{{ collection['title'] }} - Private Gallery{% endblock %}
 {% block extra_styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/client-gallery.css') }}">{% endblock %}
 {% block content %}
-<section class="client-unlock-shell"{% if collection['cover_image_id'] %} style="background-image:url('{{ url_for('client_gallery.collection_cover', code=collection['collection_code'], v=collection['cover_image_id']) }}')"{% endif %}>
+<section class="client-unlock-shell">
+    {% if collection['cover_image_id'] %}
+    <div class="collection-cover-backdrop" aria-hidden="true" style="background-image:url('{{ url_for('client_gallery.collection_cover', code=collection['collection_code'], v=collection['cover_image_id']) }}')"></div>
+    <img class="collection-cover-image" src="{{ url_for('client_gallery.collection_cover', code=collection['collection_code'], v=collection['cover_image_id']) }}" alt="Collection cover for {{ collection['title'] }}">
+    {% endif %}
     <div class="client-unlock-shade"></div>
     <div class="client-unlock-heading">
         <p class="eyebrow">Private Client Collection</p>

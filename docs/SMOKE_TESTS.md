@@ -108,8 +108,9 @@ Mark each ✅ pass / ❌ fail with notes.
 | # | URL / Action | Method | Expected Result |
 |---|-------------|--------|-----------------|
 | R1 | `/admin/reports` | GET | Empty state (no date range) |
-| R2 | Reports with valid date range | GET | Income + expense records shown with totals |
+| R2 | Reports with valid date range containing an asset-linked expense | GET | Income + expense records shown with database-calculated totals |
 | R3 | Reports with start > end | GET | Flash error, no data |
+| R4 | Reports with more than 500 matching records | GET | Summary includes every record while detail is limited to the newest 500 |
 
 ---
 
@@ -206,6 +207,8 @@ Mark each ✅ pass / ❌ fail with notes.
 | CG16 | Like, unlike, and re-like a photo | Heart state and count update; manager activity shows the visitor and photo once |
 | CG17 | Download one photo in Original, High, and Web quality | Original is unchanged; High is at most 3000px; Web is at most 1600px |
 | CG18 | Download all with a selected quality | ZIP contains every available photo at the selected quality and activity records that quality |
+| CG19 | Copy Client Share Link and open it in a private browser | The collection PIN page opens directly; the correct PIN leads only to that collection |
+| CG20 | Use a portrait photo as the cover on desktop and mobile | The complete photo stays visible over the full-width background without cropping the face |
 
 ---
 

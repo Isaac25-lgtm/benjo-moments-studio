@@ -65,10 +65,10 @@
 
 <div class="content-card">
     <h2><i class="fas fa-arrow-down text-success"></i> Income Details</h2>
-    <p class="text-muted" style="margin-bottom: 15px;">All money that came in during {{ start_date }} to {{ end_date }}:
-    </p>
+    <p class="text-muted" style="margin-bottom: 15px;">{{ income_count }} income record{{ '' if income_count == 1 else 's' }} from {{ start_date }} to {{ end_date }}.</p>
+    {% if income_count > income_records|length %}<p class="alert alert-info">Showing the newest {{ income_records|length }} records. The summary above includes all {{ income_count }} records.</p>{% endif %}
     {% if income_records %}
-    <table>
+    <div style="overflow-x:auto;"><table>
         <thead>
             <tr>
                 <th>Date</th>
@@ -87,7 +87,7 @@
             </tr>
             {% endfor %}
         </tbody>
-    </table>
+    </table></div>
     {% else %}
     <p class="text-muted">No income recorded during this period.</p>
     {% endif %}
@@ -95,9 +95,10 @@
 
 <div class="content-card">
     <h2><i class="fas fa-arrow-up text-danger"></i> Expense Details</h2>
-    <p class="text-muted" style="margin-bottom: 15px;">All money spent during {{ start_date }} to {{ end_date }}:</p>
+    <p class="text-muted" style="margin-bottom: 15px;">{{ expense_count }} expense record{{ '' if expense_count == 1 else 's' }} from {{ start_date }} to {{ end_date }}.</p>
+    {% if expense_count > expense_records|length %}<p class="alert alert-info">Showing the newest {{ expense_records|length }} records. The summary above includes all {{ expense_count }} records.</p>{% endif %}
     {% if expense_records %}
-    <table>
+    <div style="overflow-x:auto;"><table>
         <thead>
             <tr>
                 <th>Date</th>
@@ -116,7 +117,7 @@
             </tr>
             {% endfor %}
         </tbody>
-    </table>
+    </table></div>
     {% else %}
     <p class="text-muted">No expenses recorded during this period.</p>
     {% endif %}

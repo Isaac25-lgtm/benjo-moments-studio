@@ -96,7 +96,8 @@ PAGE_GUIDES = {
             "Confirm the client details, dates, location, and Active setting, then save.",
             "Upload up to 25 JPG, PNG, or WebP photos per batch; repeat uploads as needed.",
             "Choose Set Cover on the photo that should represent the collection and appear behind the PIN form.",
-            "Open Preview Gallery to check the layout, then share the code and PIN privately.",
+            "Open Preview Gallery to check the layout and confirm that the full cover photo is framed correctly.",
+            "Use Copy Link in Client Share Link and send it to the client, then send the PIN separately.",
             "Review visitors, likes, download qualities, and comments in Client Activity.",
             "Deactivate access or reset the PIN when necessary.",
         ),
@@ -209,9 +210,10 @@ SYSTEM_WORKFLOWS = (
     {
         "icon": "fa-lock", "title": "Deliver client photos",
         "steps": (
-            "Create a separate collection and copy its code and PIN.",
-            "Upload the finished photos and check the client link.",
-            "Share access privately, then monitor visitors, comments, and downloads.",
+            "Create a separate collection and copy its PIN from the success message.",
+            "Upload the finished photos, choose the cover, and preview the gallery.",
+            "Copy the client link from the collection page and send the PIN separately.",
+            "Monitor visitors, likes, comments, and download quality choices.",
         ),
         "links": (("Client Delivery", "admin_extended.client_collections"),),
     },

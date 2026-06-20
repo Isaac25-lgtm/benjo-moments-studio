@@ -210,10 +210,16 @@ def client_collection_detail(collection_id):
     collection = database.get_client_collection(collection_id)
     if not collection:
         abort(404)
+    client_share_url = url_for(
+        "client_gallery.collection_unlock",
+        code=collection["collection_code"],
+        _external=True,
+    )
     return render_template(
         "admin/client_collection_detail.html",
         collection=collection,
         activity=database.get_collection_activity(collection_id),
+        client_share_url=client_share_url,
     )
 
 

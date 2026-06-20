@@ -114,6 +114,18 @@ class ReleaseSmokeTests(unittest.TestCase):
         self.assertEqual(self.client.get("/admin/").status_code, 200)
         expenses_page = self.client.get("/admin/expenses")
         self.assertIn(b'name="amount" min="1" step="1"', expenses_page.data)
+        report = self.client.get(
+            "/admin/reports",
+            query_string={"start_date": "2026-06-01", "end_date": "2026-06-30"},
+        )
+        self.assertEqual(report.status_code, 200)
+        self.assertIn(f"Repair {self.suffix}".encode(), report.data)
+        self.assertIn(b"expense record", report.data)
+        bounded_report = database.get_financial_report(
+            "2026-06-01", "2026-06-30", detail_limit=1
+        )
+        self.assertLessEqual(len(bounded_report["expense_records"]), 1)
+        self.assertGreaterEqual(bounded_report["total_expenses"], 50000)
 
         paid_name = f"Paid {self.suffix}"
         unpaid_name = f"Unpaid {self.suffix}"
@@ -193,6 +205,8 @@ class ReleaseSmokeTests(unittest.TestCase):
             self.assertIn(b"Collection setup guide", detail.data)
             self.assertIn(b"Preview Gallery", detail.data)
             self.assertIn(b"Set Cover", detail.data)
+            self.assertIn(b"Client Share Link", detail.data)
+            self.assertIn(f"/client-gallery/{code}".encode(), detail.data)
             preview = self.client.get(f"/client-gallery/{code}/photos")
             self.assertEqual(preview.status_code, 200)
             self.assertIn(b"Manager Preview", preview.data)
@@ -208,6 +222,7 @@ class ReleaseSmokeTests(unittest.TestCase):
             cover.close()
             unlock_page = visitor.get(f"/client-gallery/{code}")
             self.assertIn(f"v={selected_cover['id']}".encode(), unlock_page.data)
+            self.assertIn(b"collection-cover-image", unlock_page.data)
             with visitor.session_transaction() as session:
                 token = session["_csrf_token"]
             rejected = visitor.post(
@@ -235,6 +250,7 @@ class ReleaseSmokeTests(unittest.TestCase):
             client_gallery = visitor.get(f"/client-gallery/{code}/photos")
             self.assertEqual(client_gallery.status_code, 200)
             self.assertIn(b"client-photo-masonry", client_gallery.data)
+            self.assertIn(b"collection-cover-image", client_gallery.data)
             self.assertNotIn(b"Manager Preview", client_gallery.data)
             self.assertIn(b"Web / Social", client_gallery.data)
             like_url = f"/client-gallery/{code}/photo/{image['id']}/like"
