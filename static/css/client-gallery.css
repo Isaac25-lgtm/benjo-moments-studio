@@ -176,7 +176,8 @@ body.lightbox-open { overflow: hidden; }
     .input-action, .photo-search { grid-template-columns: 1fr; }
     .photo-search i { display: none; }
     .client-unlock-shell { min-height: 100svh; padding: 112px 14px 32px; grid-template-columns: 1fr; align-content: end; gap: 26px; }
-    .client-unlock-heading { padding: 0; }
+    .client-unlock-shell .collection-cover-image { top: 72px; bottom: auto; height: 360px; object-position: center top; }
+    .client-unlock-heading { min-height: 300px; padding: 32px 0 0; display: flex; flex-direction: column; justify-content: flex-end; }
     .client-unlock-heading h1 { font-size: 42px; }
     .unlock-panel { padding: 26px 20px; }
     .collection-hero { min-height: 52vh; padding: 112px 0 34px; }
