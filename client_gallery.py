@@ -23,6 +23,21 @@ def _access_key(collection_id: int) -> str:
     return f"client_collection_{collection_id}"
 
 
+def _is_admin_session() -> bool:
+    user_id = session.get("user_id")
+    if not user_id or session.get("user_role") != "admin":
+        return False
+    if config.TEST_AUTH_MODE:
+        return True
+    user = database.get_user_by_id(user_id)
+    return bool(
+        user
+        and user.get("is_active")
+        and user.get("role") == "admin"
+        and session.get("auth_version") == user.get("auth_version")
+    )
+
+
 def _authorized_collection(code: str):
     collection = database.get_client_collection_by_code(code, active_only=True)
     if not collection:
@@ -56,7 +71,7 @@ def collection_search():
 
 @client_gallery.route("/client-gallery/<code>/cover")
 def collection_cover(code):
-    is_admin = session.get("user_role") == "admin" and session.get("user_id")
+    is_admin = _is_admin_session()
     collection = database.get_client_collection_by_code(code, active_only=not is_admin)
     if not collection:
         abort(404)
@@ -75,9 +90,12 @@ def collection_cover(code):
 @limiter.limit("10 per minute", methods=["POST"])
 def collection_unlock(code):
     settings = database.get_website_settings()
-    collection = database.get_client_collection_by_code(code, active_only=True)
+    is_admin = _is_admin_session()
+    collection = database.get_client_collection_by_code(code, active_only=not is_admin)
     if not collection:
         abort(404)
+    if is_admin:
+        return redirect(url_for("client_gallery.collection_view", code=collection["collection_code"]))
     if collection.get("expires_at") and collection["expires_at"] < datetime.utcnow():
         return render_template(
             "public/client_gallery_unlock.html",
@@ -102,7 +120,7 @@ def collection_unlock(code):
             session[_access_key(collection["id"])] = unlocked["visitor_id"]
             session.permanent = True
             return redirect(url_for("client_gallery.collection_view", code=collection["collection_code"]))
-        flash("The email or collection PIN was not accepted.", "error")
+        flash("That collection PIN was not accepted. Check the PIN supplied by Benjo Moments and try again.", "error")
     return render_template(
         "public/client_gallery_unlock.html",
         settings=settings,
@@ -113,9 +131,15 @@ def collection_unlock(code):
 
 @client_gallery.route("/client-gallery/<code>/photos")
 def collection_view(code):
-    collection, visitor_id = _authorized_collection(code)
-    if not visitor_id:
-        return redirect(url_for("client_gallery.collection_unlock", code=collection["collection_code"]))
+    preview_mode = _is_admin_session()
+    if preview_mode:
+        collection = database.get_client_collection_by_code(code)
+        if not collection:
+            abort(404)
+    else:
+        collection, visitor_id = _authorized_collection(code)
+        if not visitor_id:
+            return redirect(url_for("client_gallery.collection_unlock", code=collection["collection_code"]))
     search = request.args.get("q", "").strip()[:100]
     images = database.get_collection_images_for_visitor(collection["id"], search)
     comments = database.get_gallery_comments(collection["id"])
@@ -129,12 +153,13 @@ def collection_view(code):
         images=images,
         search=search,
         comments_by_image=comments_by_image,
+        preview_mode=preview_mode,
     )
 
 
 @client_gallery.route("/client-gallery/<code>/photo/<int:image_id>")
 def collection_photo(code, image_id):
-    if session.get("user_role") == "admin" and session.get("user_id"):
+    if _is_admin_session():
         collection = database.get_client_collection_by_code(code)
         if not collection:
             abort(404)

@@ -9,8 +9,8 @@ Mark each ✅ pass / ❌ fail with notes.
 
 | # | URL / Action | Method | Expected Result |
 |---|-------------|--------|-----------------|
-| P1 | `/` | GET | Homepage loads; hero slider, gallery, pricing all visible |
-| P2 | `/gallery` | GET | Gallery page loads with all published images |
+| P1 | `/` | GET | Homepage loads; hero, committee inquiry, about, pricing, and contact are visible; duplicate Services and Featured Work sections are absent |
+| P2 | `/gallery` | GET | Gallery page loads published images in a natural-aspect masonry layout |
 | P3 | `/gallery?album=weddings` | GET | Filters to weddings album only |
 | P4 | `/services` | GET | Services page loads without errors |
 | P5 | `/about` | GET | About page loads without errors |
@@ -66,6 +66,7 @@ Mark each ✅ pass / ❌ fail with notes.
 | E2 | Add expense (valid) | POST | Record appears in list |
 | E3 | Add expense (missing category) | POST | Flash error |
 | E4 | Delete expense record | POST | Record removed |
+| E5 | Enter a round amount such as UGX 5,000 | Browser | Amount is accepted without a step-mismatch warning |
 
 ---
 
@@ -117,7 +118,7 @@ Mark each ✅ pass / ❌ fail with notes.
 | # | URL / Action | Method | Expected Result |
 |---|-------------|--------|-----------------|
 | G1 | `/admin/gallery` | GET | Lists all gallery images |
-| G2 | Upload image (valid jpg/png/webp) | POST | Image appears in list |
+| G2 | Upload up to 25 valid jpg/png/webp images | POST | Images appear in list; another batch can be added afterward |
 | G3 | Upload image (invalid type e.g. .exe) | POST | Flash error, no upload |
 | G4 | Toggle image publish | POST | Published status flips |
 | G5 | Delete image | POST | Image removed from list (file deleted from disk) |
@@ -197,6 +198,11 @@ Mark each ✅ pass / ❌ fail with notes.
 | CG8 | Leave a photo comment | Comment appears in gallery and admin activity |
 | CG9 | Lock or expire collection | Client access is denied |
 | CG10 | Reset collection PIN | Old PIN stops working |
+| CG11 | Manager opens Preview Gallery | Gallery layout opens without a PIN and creates no visitor record |
+| CG12 | Manager selects Set Cover on a photo | Selected photo becomes the collection card, unlock background, and gallery hero |
+| CG13 | Paste the correct PIN with surrounding spaces | Access succeeds after safe whitespace normalization |
+| CG14 | Open a photo in the collection | Full-screen preview opens with previous/next controls |
+| CG15 | Upload more than one batch | All batches remain in the same collection; up to 25 or 100 MB are accepted per batch |
 
 ---
 
@@ -210,5 +216,5 @@ Mark each ✅ pass / ❌ fail with notes.
 | O4 | Link expense to asset | Expense total appears on that asset |
 | O5 | Add unpaid and paid customers | Unpaid customer appears first |
 | O6 | Add customer venue/location | Location appears in customer list |
-| O7 | Edit service category/icon | Homepage, services page, and forms update |
+| O7 | Edit service category/icon | Services page and booking forms update |
 | O8 | Open committee inquiry | WhatsApp targets `0759 189 861` |

@@ -42,14 +42,12 @@ def save_contact_message(values):
 def index():
     """Homepage."""
     settings = database.get_website_settings()
-    # Get all published gallery images for Featured Work section
-    gallery_images = database.get_published_gallery_images(limit=12)
     # Get active pricing packages
     pricing_packages = database.get_active_pricing_packages()
     hero_images = database.get_all_hero_images()
     service_catalogue = database.get_service_catalogue()
     return render_template(
-        'public/index.html', settings=settings, gallery_images=gallery_images,
+        'public/index.html', settings=settings,
         pricing_packages=pricing_packages, hero_images=hero_images,
         service_catalogue=service_catalogue,
     )

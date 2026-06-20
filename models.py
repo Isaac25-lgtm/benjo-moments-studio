@@ -300,6 +300,12 @@ class ClientCollection(Base):
     pin_hash = Column(Text, nullable=False)
     is_active = Column(Boolean, nullable=False, default=True)
     expires_at = Column(DateTime, nullable=True)
+    cover_image_id = Column(
+        Integer,
+        ForeignKey("client_collection_images.id", ondelete="SET NULL", use_alter=True),
+        nullable=True,
+        index=True,
+    )
     created_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -309,6 +315,7 @@ class ClientCollection(Base):
         back_populates="collection",
         cascade="all, delete-orphan",
         order_by="ClientCollectionImage.display_order, ClientCollectionImage.id",
+        foreign_keys="ClientCollectionImage.collection_id",
     )
 
     def as_dict(self):
@@ -323,6 +330,7 @@ class ClientCollection(Base):
             "event_date": self.event_date,
             "is_active": self.is_active,
             "expires_at": self.expires_at,
+            "cover_image_id": self.cover_image_id,
             "created_by_id": self.created_by_id,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
@@ -347,7 +355,11 @@ class ClientCollectionImage(Base):
     display_order = Column(Integer, nullable=False, default=0)
     uploaded_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
-    collection = relationship("ClientCollection", back_populates="images")
+    collection = relationship(
+        "ClientCollection",
+        back_populates="images",
+        foreign_keys=[collection_id],
+    )
 
     def as_dict(self):
         return {

@@ -1563,7 +1563,7 @@ def get_all_client_collections(search: str = "", status: str = "all") -> list[_R
             .group_by(GalleryDownload.collection_id)
             .subquery()
         )
-        cover_image_id = (
+        fallback_cover_image_id = (
             select(ClientCollectionImage.id)
             .where(ClientCollectionImage.collection_id == ClientCollection.id)
             .order_by(ClientCollectionImage.display_order, ClientCollectionImage.id)
@@ -1575,7 +1575,10 @@ def get_all_client_collections(search: str = "", status: str = "all") -> list[_R
                 ClientCollection,
                 func.coalesce(image_count.c.image_count, 0),
                 func.coalesce(download_count.c.download_count, 0),
-                cover_image_id.label("cover_image_id"),
+                func.coalesce(
+                    ClientCollection.cover_image_id,
+                    fallback_cover_image_id,
+                ).label("resolved_cover_image_id"),
             )
             .outerjoin(image_count, image_count.c.collection_id == ClientCollection.id)
             .outerjoin(download_count, download_count.c.collection_id == ClientCollection.id)
@@ -1754,7 +1757,8 @@ def delete_client_collection(collection_id: int) -> Optional[_Row]:
 def add_client_collection_image(collection_id, filename, original_name, caption="", display_order=0) -> None:
     actor = _actor_email()
     with SessionLocal() as session:
-        if not session.get(ClientCollection, collection_id):
+        collection = session.get(ClientCollection, collection_id)
+        if not collection:
             raise ValueError("Client collection not found.")
         row = ClientCollectionImage(
             collection_id=collection_id,
@@ -1764,6 +1768,10 @@ def add_client_collection_image(collection_id, filename, original_name, caption=
             display_order=max(0, int(display_order or 0)),
         )
         session.add(row)
+        session.flush()
+        if collection.cover_image_id is None:
+            collection.cover_image_id = row.id
+        collection.updated_at = datetime.utcnow()
         session.commit()
         log_audit(actor, "create", "client_collection_image", row.id, _audit_details(collection_id=collection_id))
 
@@ -1775,6 +1783,13 @@ def get_client_collection_image(image_id: int) -> Optional[_Row]:
 
 def get_collection_cover_image(collection_id: int) -> Optional[_Row]:
     with SessionLocal() as session:
+        collection = session.get(ClientCollection, collection_id)
+        if not collection:
+            return None
+        if collection.cover_image_id:
+            selected = session.get(ClientCollectionImage, collection.cover_image_id)
+            if selected and selected.collection_id == collection_id:
+                return _to_row(selected)
         row = session.scalar(
             select(ClientCollectionImage)
             .where(ClientCollectionImage.collection_id == collection_id)
@@ -1782,6 +1797,25 @@ def get_collection_cover_image(collection_id: int) -> Optional[_Row]:
             .limit(1)
         )
         return _to_row(row)
+
+
+def set_client_collection_cover(collection_id: int, image_id: int) -> None:
+    actor = _actor_email()
+    with SessionLocal() as session:
+        collection = session.get(ClientCollection, collection_id)
+        image = session.get(ClientCollectionImage, image_id)
+        if not collection or not image or image.collection_id != collection_id:
+            raise ValueError("That photo does not belong to this collection.")
+        collection.cover_image_id = image.id
+        collection.updated_at = datetime.utcnow()
+        session.commit()
+        log_audit(
+            actor,
+            "set_cover",
+            "client_collection",
+            collection_id,
+            _audit_details(image_id=image_id),
+        )
 
 
 def delete_client_collection_image(image_id: int) -> Optional[_Row]:
@@ -1799,6 +1833,7 @@ def delete_client_collection_image(image_id: int) -> Optional[_Row]:
 
 def unlock_client_collection(code: str, email: str, name: str, pin: str) -> Optional[_Row]:
     email = str(email).strip().lower()[:255]
+    pin = str(pin).strip()
     if "@" not in email:
         raise ValueError("A valid email address is required.")
     with SessionLocal() as session:
@@ -1810,7 +1845,7 @@ def unlock_client_collection(code: str, email: str, name: str, pin: str) -> Opti
         )
         if not collection or (collection.expires_at and collection.expires_at < datetime.utcnow()):
             return None
-        if not check_password_hash(collection.pin_hash, str(pin)):
+        if not check_password_hash(collection.pin_hash, pin):
             return None
         visitor = session.scalar(
             select(GalleryVisitor).where(

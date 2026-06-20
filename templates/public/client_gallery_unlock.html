@@ -2,22 +2,37 @@
 {% block title %}{{ collection['title'] }} - Private Gallery{% endblock %}
 {% block extra_styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/client-gallery.css') }}">{% endblock %}
 {% block content %}
-<section class="client-search-shell">
-    <div class="client-search-panel">
-        <div class="client-icon"><i class="fas fa-lock"></i></div>
-        <p class="eyebrow">Private Collection</p>
+<section class="client-unlock-shell"{% if collection['cover_image_id'] %} style="background-image:url('{{ url_for('client_gallery.collection_cover', code=collection['collection_code'], v=collection['cover_image_id']) }}')"{% endif %}>
+    <div class="client-unlock-shade"></div>
+    <div class="client-unlock-heading">
+        <p class="eyebrow">Private Client Collection</p>
         <h1>{{ collection['title'] }}</h1>
-        <p>{{ collection['client_name'] }}{% if collection['event_date'] %} · {{ collection['event_date'].strftime('%d %B %Y') }}{% endif %}</p>
+        <p>{{ collection['client_name'] }}{% if collection['event_date'] %} &middot; {{ collection['event_date'].strftime('%d %B %Y') }}{% endif %}{% if collection['location'] %} &middot; {{ collection['location'] }}{% endif %}</p>
+    </div>
+    <div class="client-search-panel unlock-panel">
+        <div class="client-icon"><i class="fas fa-lock"></i></div>
+        <p class="eyebrow">Enter Gallery</p>
+        <h2>Your photos are ready</h2>
+        <p>Enter your details and the private PIN supplied by Benjo Moments.</p>
         {% if expired %}<div class="access-notice">This collection has expired. Contact Benjo Moments for renewed access.</div>
         {% else %}
         <form method="POST" class="unlock-form">
             <div><label for="name">Your name</label><input id="name" name="name" maxlength="255" required></div>
             <div><label for="email">Email address</label><input id="email" type="email" name="email" maxlength="255" required></div>
-            <div><label for="pin">Collection PIN</label><input id="pin" type="password" name="pin" minlength="4" autocomplete="one-time-code" required></div>
+            <div><label for="pin">Collection PIN</label><div class="pin-field"><input id="pin" type="password" name="pin" minlength="4" autocomplete="one-time-code" inputmode="text" required><button type="button" onclick="toggleCollectionPin()" title="Show or hide PIN" aria-label="Show or hide collection PIN"><i class="far fa-eye"></i></button></div></div>
             <button class="btn btn-primary" type="submit"><i class="fas fa-unlock"></i> Open Collection</button>
         </form>
         <p class="privacy-note">Your email is recorded for collection security and download history.</p>
         {% endif %}
     </div>
 </section>
+<script>
+function toggleCollectionPin() {
+    var input = document.getElementById('pin');
+    var icon = document.querySelector('.pin-field i');
+    var showing = input.type === 'text';
+    input.type = showing ? 'password' : 'text';
+    icon.className = showing ? 'far fa-eye' : 'far fa-eye-slash';
+}
+</script>
 {% endblock %}

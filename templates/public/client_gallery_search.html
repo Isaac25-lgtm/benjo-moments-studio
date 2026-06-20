@@ -21,7 +21,7 @@
         {% for collection in collections %}
         <a class="directory-card" href="{{ url_for('client_gallery.collection_unlock', code=collection['collection_code']) }}">
             <div class="directory-cover">
-                {% if collection['cover_image_id'] %}<img src="{{ url_for('client_gallery.collection_cover', code=collection['collection_code']) }}" alt="{{ collection['title'] }}" loading="lazy">
+                {% if collection['cover_image_id'] %}<img src="{{ url_for('client_gallery.collection_cover', code=collection['collection_code'], v=collection['cover_image_id']) }}" alt="{{ collection['title'] }}" loading="lazy">
                 {% else %}<div class="directory-placeholder"><i class="fas fa-images"></i></div>{% endif %}
                 <span><i class="fas fa-lock"></i> Private</span>
             </div>

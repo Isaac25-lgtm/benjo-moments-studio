@@ -85,7 +85,7 @@ DB_CONNECT_TIMEOUT = int(os.environ.get("DB_CONNECT_TIMEOUT", "10"))
 # File uploads
 # ---------------------------------------------------------------------------
 UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", str(BASE_DIR / "instance" / "uploads"))
-MAX_CONTENT_LENGTH = 100 * 1024 * 1024  # 100 MB (supports batch uploads of up to 10 images)
+MAX_CONTENT_LENGTH = 100 * 1024 * 1024  # 100 MB total request, up to 25 images per batch
 MAX_IMAGE_FILE_SIZE = 10 * 1024 * 1024
 MAX_IMAGE_PIXELS = 40_000_000
 

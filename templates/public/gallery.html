@@ -1,183 +1,46 @@
 {% extends 'public/base.html' %}
 {% block title %}Gallery - {{ settings['site_name'] if settings else 'Benjo Moments' }}{% endblock %}
-
 {% block extra_styles %}
 <style>
-    /* Dynamic Ken Burns Effect - FACE-FOCUSED animations */
-    .gallery-item {
-        overflow: hidden;
-    }
-
-    .gallery-item img {
-        animation: kenburns 25s ease-in-out infinite;
-        transform-origin: center 30%;
-        /* Focus on upper-center where faces usually are */
-        object-position: center 30%;
-        /* Position image to show faces */
-    }
-
-    /* Different subtle animation patterns - keeping faces visible */
-    .gallery-item:nth-child(6n+1) img {
-        animation-name: kb-gentle-zoom;
-        animation-duration: 20s;
-    }
-
-    .gallery-item:nth-child(6n+2) img {
-        animation-name: kb-subtle-pan;
-        animation-duration: 25s;
-        animation-delay: -5s;
-    }
-
-    .gallery-item:nth-child(6n+3) img {
-        animation-name: kb-focus-center;
-        animation-duration: 22s;
-        animation-delay: -10s;
-    }
-
-    .gallery-item:nth-child(6n+4) img {
-        animation-name: kb-gentle-zoom;
-        animation-duration: 24s;
-        animation-delay: -3s;
-    }
-
-    .gallery-item:nth-child(6n+5) img {
-        animation-name: kb-subtle-pan;
-        animation-duration: 21s;
-        animation-delay: -8s;
-    }
-
-    .gallery-item:nth-child(6n+6) img {
-        animation-name: kb-face-focus;
-        animation-duration: 23s;
-        animation-delay: -12s;
-    }
-
-    /* Gentle zoom - stays centered on faces */
-    @keyframes kb-gentle-zoom {
-        0% {
-            transform: scale(1.05);
-            transform-origin: center 30%;
-        }
-
-        50% {
-            transform: scale(1.15);
-            transform-origin: center 30%;
-        }
-
-        100% {
-            transform: scale(1.05);
-            transform-origin: center 30%;
-        }
-    }
-
-    /* Subtle horizontal pan - minimal movement to keep faces visible */
-    @keyframes kb-subtle-pan {
-        0% {
-            transform: scale(1.1) translateX(-2%);
-            transform-origin: center 35%;
-        }
-
-        50% {
-            transform: scale(1.15) translateX(2%);
-            transform-origin: center 35%;
-        }
-
-        100% {
-            transform: scale(1.1) translateX(-2%);
-            transform-origin: center 35%;
-        }
-    }
-
-    /* Focus on center - zoom into center where main subjects are */
-    @keyframes kb-focus-center {
-        0% {
-            transform: scale(1.0);
-            transform-origin: center 35%;
-        }
-
-        50% {
-            transform: scale(1.18);
-            transform-origin: center 35%;
-        }
-
-        100% {
-            transform: scale(1.0);
-            transform-origin: center 35%;
-        }
-    }
-
-    /* Face focus - slight zoom emphasizing upper portion where faces are */
-    @keyframes kb-face-focus {
-        0% {
-            transform: scale(1.08) translateY(1%);
-            transform-origin: center 25%;
-        }
-
-        50% {
-            transform: scale(1.18) translateY(-1%);
-            transform-origin: center 25%;
-        }
-
-        100% {
-            transform: scale(1.08) translateY(1%);
-            transform-origin: center 25%;
-        }
-    }
-
-    /* Pause animation on hover to let user view clearly */
-    .gallery-item:hover img {
-        animation-play-state: paused;
-        transform: scale(1.0);
-        transform-origin: center center;
-    }
+    .portfolio-tools{padding:34px 20px 28px}.portfolio-search{max-width:680px;margin:0 auto 22px;display:grid;grid-template-columns:1fr auto;gap:10px}.portfolio-search input{min-width:0;border:1px solid #cbd5e1;border-radius:6px;padding:13px 15px;font:inherit}.portfolio-masonry{columns:4 270px;column-gap:8px}.portfolio-photo{position:relative;width:100%;margin:0 0 8px;padding:0;display:inline-block;break-inside:avoid;overflow:hidden;border:0;background:#e5e7eb;cursor:zoom-in}.portfolio-photo img{width:100%;height:auto;display:block;transition:transform .3s ease,filter .3s ease}.portfolio-photo:hover img{transform:scale(1.015);filter:brightness(.9)}.portfolio-caption{position:absolute;inset:auto 0 0;padding:34px 14px 13px;background:linear-gradient(transparent,rgba(8,10,18,.78));color:#fff;text-align:left;opacity:0;transition:opacity .2s ease}.portfolio-photo:hover .portfolio-caption,.portfolio-photo:focus-visible .portfolio-caption{opacity:1}.portfolio-caption strong,.portfolio-caption small{display:block}.portfolio-caption small{margin-top:2px;color:#dbe2ea}.portfolio-lightbox{display:none;position:fixed;inset:0;z-index:3000;padding:30px 80px;align-items:center;justify-content:center;background:rgba(4,6,12,.96);color:#fff}.portfolio-lightbox.open{display:flex}.portfolio-lightbox figure{max-width:min(1400px,90vw);max-height:92vh;margin:0;text-align:center}.portfolio-lightbox img{max-width:100%;max-height:84vh;display:block;object-fit:contain}.portfolio-lightbox figcaption{margin-top:10px;color:#cbd5e1}.portfolio-lightbox button{position:absolute;border:0;display:grid;place-items:center;background:rgba(255,255,255,.12);color:#fff;cursor:pointer}.portfolio-close{top:20px;right:24px;width:44px;height:44px;border-radius:50%}.portfolio-nav{top:50%;width:48px;height:64px;transform:translateY(-50%)}.portfolio-prev{left:20px}.portfolio-next{right:20px}body.portfolio-lightbox-open{overflow:hidden}@media(max-width:720px){.portfolio-search{grid-template-columns:1fr}.portfolio-masonry{columns:2;column-gap:5px}.portfolio-photo{margin-bottom:5px}.portfolio-lightbox{padding:64px 8px 28px}.portfolio-nav{top:auto;bottom:18px;width:46px;height:46px;border-radius:50%;transform:none}.portfolio-prev{left:calc(50% - 56px)}.portfolio-next{right:calc(50% - 56px)}}
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Page Header -->
-<div class="page-header">
-    <h1>Our Gallery</h1>
-    <p>Browse through our collection of beautiful moments</p>
-</div>
+<div class="page-header"><h1>Our Gallery</h1><p>Browse through our collection of beautiful moments</p></div>
 
-<section class="section">
-    <div class="container">
-        <form method="GET" style="max-width:680px;margin:0 auto 24px;display:grid;grid-template-columns:1fr auto;gap:10px;">
-            {% if current_album %}<input type="hidden" name="album" value="{{ current_album }}">{% endif %}
-            <input type="search" name="q" value="{{ search }}" placeholder="Search for your memories" aria-label="Search gallery" style="border:1px solid #cbd5e1;border-radius:6px;padding:13px 15px;font:inherit;">
-            <button class="btn btn-primary" type="submit"><i class="fas fa-search"></i> Search</button>
-        </form>
-        <!-- Filter Buttons -->
-        <div class="filter-buttons">
-            <a href="{{ url_for('public.gallery', q=search or None) }}"
-                class="filter-btn {% if not current_album %}active{% endif %}">All</a>
-            {% for album in albums %}
-            <a href="{{ url_for('public.gallery', album=album, q=search or None) }}"
-                class="filter-btn {% if current_album == album %}active{% endif %}">{{ album.title() }}</a>
-            {% endfor %}
-        </div>
-
-        <!-- Gallery Grid -->
-        {% if images %}
-        <div class="gallery-grid">
-            {% for img in images %}
-            <div class="gallery-item">
-                <img src="{{ url_for('public.uploaded_file', album=img['album'], filename=img['filename']) }}"
-                    alt="{{ img['caption'] or 'Gallery image' }}">
-                <div class="gallery-overlay">
-                    <h3>{{ img['caption'] if img['caption'] else 'Beautiful Moment' }}</h3>
-                    <span>{{ img['album'].title() }}</span>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <div style="text-align: center; padding: 60px 20px;">
-            <i class="fas fa-images" style="font-size: 64px; color: #cbd5e0; margin-bottom: 20px;"></i>
-            <h3 style="color: #718096;">No images available</h3>
-            <p style="color: #a0aec0;">Check back soon for new photos!</p>
-        </div>
-        {% endif %}
+<section class="portfolio-tools">
+    <form method="GET" class="portfolio-search">
+        {% if current_album %}<input type="hidden" name="album" value="{{ current_album }}">{% endif %}
+        <input type="search" name="q" value="{{ search }}" placeholder="Search for your memories" aria-label="Search gallery">
+        <button class="btn btn-primary" type="submit"><i class="fas fa-search"></i> Search</button>
+    </form>
+    <div class="filter-buttons">
+        <a href="{{ url_for('public.gallery', q=search or None) }}" class="filter-btn {% if not current_album %}active{% endif %}">All</a>
+        {% for album in albums %}<a href="{{ url_for('public.gallery', album=album, q=search or None) }}" class="filter-btn {% if current_album == album %}active{% endif %}">{{ album.title() }}</a>{% endfor %}
     </div>
 </section>
+
+{% if images %}
+<section class="portfolio-masonry" aria-label="Photography portfolio">
+    {% for img in images %}
+    <button type="button" class="portfolio-photo" data-full="{{ url_for('public.uploaded_file', album=img['album'], filename=img['filename']) }}" data-title="{{ img['caption'] or 'Beautiful Moment' }}">
+        <img src="{{ url_for('public.uploaded_file', album=img['album'], filename=img['filename']) }}" alt="{{ img['caption'] or 'Gallery image' }}" loading="lazy">
+        <span class="portfolio-caption"><strong>{{ img['caption'] or 'Beautiful Moment' }}</strong><small>{{ img['album'].title() }}</small></span>
+    </button>
+    {% endfor %}
+</section>
+{% else %}
+<div style="text-align:center;padding:60px 20px 90px;"><i class="fas fa-images" style="font-size:64px;color:#cbd5e0;margin-bottom:20px;"></i><h3 style="color:#718096;">No images available</h3><p style="color:#a0aec0;">Check back soon for new photos!</p></div>
+{% endif %}
+
+<div class="portfolio-lightbox" id="portfolio-lightbox" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Photo preview">
+    <button type="button" class="portfolio-close" aria-label="Close photo preview"><i class="fas fa-times"></i></button>
+    <button type="button" class="portfolio-nav portfolio-prev" aria-label="Previous photo"><i class="fas fa-chevron-left"></i></button>
+    <figure><img src="" alt=""><figcaption></figcaption></figure>
+    <button type="button" class="portfolio-nav portfolio-next" aria-label="Next photo"><i class="fas fa-chevron-right"></i></button>
+</div>
+<script>
+(function(){var items=Array.from(document.querySelectorAll('.portfolio-photo'));var box=document.getElementById('portfolio-lightbox');if(!items.length||!box)return;var image=box.querySelector('img');var caption=box.querySelector('figcaption');var current=0;function show(index){current=(index+items.length)%items.length;image.src=items[current].dataset.full;image.alt=items[current].dataset.title;caption.textContent=items[current].dataset.title;box.classList.add('open');box.setAttribute('aria-hidden','false');document.body.classList.add('portfolio-lightbox-open')}function close(){box.classList.remove('open');box.setAttribute('aria-hidden','true');document.body.classList.remove('portfolio-lightbox-open');items[current].focus()}items.forEach(function(item,index){item.addEventListener('click',function(){show(index)})});box.querySelector('.portfolio-close').addEventListener('click',close);box.querySelector('.portfolio-prev').addEventListener('click',function(){show(current-1)});box.querySelector('.portfolio-next').addEventListener('click',function(){show(current+1)});box.addEventListener('click',function(event){if(event.target===box)close()});document.addEventListener('keydown',function(event){if(!box.classList.contains('open'))return;if(event.key==='Escape')close();if(event.key==='ArrowLeft')show(current-1);if(event.key==='ArrowRight')show(current+1)})})();
+</script>
 {% endblock %}

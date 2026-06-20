@@ -269,25 +269,6 @@
     </div>
 </section>
 
-<!-- Services Section -->
-<section class="section section-dark">
-    <div class="container">
-        <div class="section-title">
-            <h2>Our Services</h2>
-            <p>Professional photography services tailored to your needs</p>
-        </div>
-        <div class="services-grid">
-            {% for category in service_catalogue %}
-            <a class="service-card" href="{{ url_for('public.services') }}" style="display:block;text-decoration:none;color:inherit;">
-                {% if category['image_url'] %}<img class="svc-photo" src="{{ category['image_url'] }}" alt="{{ category['name'] }}" loading="lazy">{% endif %}
-                <h3><i class="fas {{ category['icon'] }}" style="font-size:18px;margin-right:6px;"></i>{{ category['name'] }}</h3>
-                <p>{{ category['description'] }}</p>
-            </a>
-            {% endfor %}
-        </div>
-    </div>
-</section>
-
 <!-- Committee Inquiries -->
 <section class="section" style="background:#f4f6f8;">
     <div class="container committee-inquiry-grid">
@@ -302,36 +283,6 @@
     .committee-inquiry-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(280px,.75fr);gap:42px;align-items:center}
     @media(max-width:760px){.committee-inquiry-grid{grid-template-columns:1fr}}
 </style>
-
-<!-- Portfolio Section -->
-<section class="section">
-    <div class="container">
-        <div class="section-title">
-            <h2 class="animate-on-scroll">Featured Work</h2>
-            <p class="animate-on-scroll delay-1">A glimpse of our recent photography projects</p>
-        </div>
-        <div class="gallery-grid">
-            {% for img in gallery_images %}
-            <div class="gallery-item">
-                <img src="{{ url_for('public.uploaded_file', album=img['album'], filename=img['filename']) }}"
-                    alt="{{ img['caption'] or 'Gallery image' }}">
-                <div class="gallery-overlay">
-                    <h3>{{ img['caption'] or 'Beautiful Moment' }}</h3>
-                    <span>{{ img['album'].title() }}</span>
-                </div>
-            </div>
-            {% endfor %}
-            {% if not gallery_images %}
-            <p style="text-align: center; color: #718096; grid-column: 1 / -1; padding: 40px 0;">
-                Photos coming soon. Stay tuned!
-            </p>
-            {% endif %}
-        </div>
-        <div style="text-align: center; margin-top: 40px;">
-            <a href="{{ url_for('public.gallery') }}" class="btn btn-primary">View All Photos</a>
-        </div>
-    </div>
-</section>
 
 <!-- About Section -->
 <section class="section section-gray">

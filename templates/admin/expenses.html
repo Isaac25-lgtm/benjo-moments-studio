@@ -18,7 +18,7 @@
         <div class="form-row">
             <div class="form-group"><label>Recorded date</label><input type="date" name="date" required></div>
             <div class="form-group"><label>Category</label><input name="category" list="expense-categories" maxlength="100" placeholder="Choose or type a category" required></div>
-            <div class="form-group"><label>Amount (UGX)</label><input type="number" name="amount" min="1" step="1000" required></div>
+            <div class="form-group"><label>Amount (UGX)</label><input type="number" name="amount" min="1" step="1" required></div>
         </div>
         <div class="form-row">
             <div class="form-group"><label>Payment status</label><select name="payment_status"><option value="paid">Paid</option><option value="pending">Pending</option><option value="cancelled">Cancelled</option></select></div>
@@ -45,7 +45,7 @@
         <div id="edit-expense-{{ r['id'] }}" class="edit-modal-overlay"><div class="edit-modal"><h3>Edit Expense</h3><form action="{{ url_for('admin.edit_expense', id=r['id']) }}" method="POST">
             <div class="form-group"><label>Recorded date</label><input type="date" name="date" value="{{ r['date'] }}" required></div>
             <div class="form-group"><label>Category</label><input name="category" list="expense-categories" value="{{ r['category'] }}" required></div>
-            <div class="form-group"><label>Amount</label><input type="number" name="amount" min="1" step="1000" value="{{ r['amount']|int }}" required></div>
+            <div class="form-group"><label>Amount</label><input type="number" name="amount" min="1" step="1" value="{{ r['amount']|int }}" required></div>
             <div class="form-group"><label>Status</label><select name="payment_status">{% for value in ['pending','paid','cancelled'] %}<option value="{{ value }}" {% if r['payment_status']==value %}selected{% endif %}>{{ value.title() }}</option>{% endfor %}</select></div>
             <div class="form-group"><label>Payee</label><input name="payee" value="{{ r['payee'] or '' }}"></div>
             <div class="form-group"><label>Related asset</label><select name="asset_id"><option value="">No asset</option>{% for asset in assets %}<option value="{{ asset['id'] }}" {% if r['asset_id']==asset['id'] %}selected{% endif %}>{{ asset['name'] }}</option>{% endfor %}</select></div>

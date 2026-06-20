@@ -261,7 +261,9 @@ def upload_collection_images(collection_id):
     destination = os.path.join(config.UPLOAD_FOLDER, "client_collections", str(collection_id))
     caption = request.form.get("caption", "").strip()[:1000]
     uploaded = 0
-    for file in files[:10]:
+    if len(files) > 25:
+        flash("Only the first 25 photos were processed. Upload the rest in another batch.", "warning")
+    for file in files[:25]:
         if not file.filename:
             continue
         try:
@@ -279,6 +281,19 @@ def upload_collection_images(collection_id):
         except InvalidImageError as exc:
             flash(f"{file.filename}: {exc}", "warning")
     flash(f"{uploaded} client photo{'s' if uploaded != 1 else ''} uploaded.", "success")
+    return redirect(url_for("admin_extended.client_collection_detail", collection_id=collection_id))
+
+
+@admin_extended.route(
+    "/client-collections/<int:collection_id>/images/<int:image_id>/cover",
+    methods=["POST"],
+)
+def set_collection_cover(collection_id, image_id):
+    try:
+        database.set_client_collection_cover(collection_id, image_id)
+        flash("Collection cover updated.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
     return redirect(url_for("admin_extended.client_collection_detail", collection_id=collection_id))
 
 

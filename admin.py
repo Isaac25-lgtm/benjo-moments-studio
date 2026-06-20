@@ -487,7 +487,7 @@ def gallery_manager():
 @login_required
 @limiter.limit("10 per minute")
 def upload_image():
-    """Upload one or more images to gallery (batch upload up to 10)."""
+    """Upload one or more images to gallery (batch upload up to 25)."""
     files = request.files.getlist('image')
     album = request.form.get('album', 'other')
     caption = request.form.get('caption', '').strip()[:1000]
@@ -506,10 +506,10 @@ def upload_image():
 
     uploaded = 0
     errors = []
-    if len(files) > 10:
-        errors.append("Only the first 10 files were processed.")
+    if len(files) > 25:
+        errors.append("Only the first 25 files were processed. Upload the rest in another batch.")
 
-    for file in files[:10]:  # Hard limit: max 10 per request
+    for file in files[:25]:
         if file.filename == '':
             continue
         try:

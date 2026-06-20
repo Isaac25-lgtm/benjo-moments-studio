@@ -94,8 +94,9 @@ PAGE_GUIDES = {
         "summary": "Prepare this collection, upload photos, and monitor client activity.",
         "steps": (
             "Confirm the client details, dates, location, and Active setting, then save.",
-            "Upload up to 10 JPG, PNG, or WebP photos at a time.",
-            "Open Client Link to check the view, then share the code and PIN privately.",
+            "Upload up to 25 JPG, PNG, or WebP photos per batch; repeat uploads as needed.",
+            "Choose Set Cover on the photo that should represent the collection and appear behind the PIN form.",
+            "Open Preview Gallery to check the layout, then share the code and PIN privately.",
             "Review visitors, downloads, and comments in Client Activity.",
             "Deactivate access or reset the PIN when necessary.",
         ),
@@ -116,7 +117,7 @@ PAGE_GUIDES = {
         "title": "Public gallery guide",
         "summary": "Control portfolio photos visible to every visitor on the Gallery page.",
         "steps": (
-            "Select the correct album and choose up to 10 photos per upload.",
+            "Select the correct album and choose up to 25 photos per batch; repeat uploads as needed.",
             "Add a short caption that describes the work.",
             "Use Publish or Hide to control whether each photo appears publicly.",
             "Preview the public Gallery after making changes.",

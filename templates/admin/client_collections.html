@@ -15,7 +15,7 @@
     {% for collection in collections %}
     <a class="admin-collection-card" href="{{ url_for('admin_extended.client_collection_detail', collection_id=collection['id']) }}">
         <div class="admin-collection-cover">
-            {% if collection['cover_image_id'] %}<img src="{{ url_for('client_gallery.collection_cover', code=collection['collection_code']) }}" alt="{{ collection['title'] }}">
+            {% if collection['cover_image_id'] %}<img src="{{ url_for('client_gallery.collection_cover', code=collection['collection_code'], v=collection['cover_image_id']) }}" alt="{{ collection['title'] }}">
             {% else %}<div><i class="fas fa-images"></i><span>Add photos</span></div>{% endif %}
             <span class="badge {% if collection['access_status'] == 'active' %}badge-success{% elif collection['access_status'] == 'expired' %}badge-danger{% else %}badge-warning{% endif %}">{{ collection['access_status']|title }}</span>
         </div>

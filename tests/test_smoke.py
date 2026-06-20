@@ -48,7 +48,13 @@ class ReleaseSmokeTests(unittest.TestCase):
     def test_public_and_admin_pages(self):
         for path in ("/", "/gallery?q=wedding", "/services", "/about", "/contact", "/client-gallery", "/healthz"):
             with self.subTest(path=path):
-                self.assertEqual(self.client.get(path).status_code, 200)
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)
+                if path == "/":
+                    self.assertNotIn(b"Featured Work", response.data)
+                    self.assertNotIn(b"Our Services", response.data)
+                if path.startswith("/gallery"):
+                    self.assertIn(b"portfolio-masonry", response.data)
         for path in (
             "/admin/", "/admin/guide", "/admin/income", "/admin/expenses",
             "/admin/invoices", "/admin/customers", "/admin/assets", "/admin/reports",
@@ -105,6 +111,8 @@ class ReleaseSmokeTests(unittest.TestCase):
         self.assertEqual(asset["expense_total"], 50000.0)
         self.assertGreaterEqual(database.get_outstanding_expenses_total(), 50000.0)
         self.assertEqual(self.client.get("/admin/").status_code, 200)
+        expenses_page = self.client.get("/admin/expenses")
+        self.assertIn(b'name="amount" min="1" step="1"', expenses_page.data)
 
         paid_name = f"Paid {self.suffix}"
         unpaid_name = f"Unpaid {self.suffix}"
@@ -134,20 +142,38 @@ class ReleaseSmokeTests(unittest.TestCase):
         code = collection["collection_code"]
         directory = os.path.join(config.UPLOAD_FOLDER, "client_collections", str(collection_id))
         try:
-            image_bytes = io.BytesIO()
-            Image.new("RGB", (32, 24), color=(220, 45, 80)).save(image_bytes, format="JPEG")
-            image_bytes.seek(0)
+            first_image = io.BytesIO()
+            second_image = io.BytesIO()
+            Image.new("RGB", (32, 24), color=(220, 45, 80)).save(first_image, format="JPEG")
+            Image.new("RGB", (24, 32), color=(30, 120, 210)).save(second_image, format="JPEG")
+            first_image.seek(0)
+            second_image.seek(0)
             response = self.client.post(
                 f"/admin/client-collections/{collection_id}/upload",
                 data={
                     "csrf_token": self.csrf(),
                     "caption": f"Smoke photo {self.suffix}",
-                    "images": (image_bytes, f"smoke-{self.suffix}.jpg"),
+                    "images": [
+                        (first_image, f"smoke-first-{self.suffix}.jpg"),
+                        (second_image, f"smoke-cover-{self.suffix}.jpg"),
+                    ],
                 },
                 content_type="multipart/form-data",
             )
             self.assertEqual(response.status_code, 302)
-            image = database.get_client_collection(collection_id)["images"][0]
+            stored_collection = database.get_client_collection(collection_id)
+            image = stored_collection["images"][0]
+            selected_cover = stored_collection["images"][1]
+            self.assertEqual(stored_collection["cover_image_id"], image["id"])
+            response = self.client.post(
+                f"/admin/client-collections/{collection_id}/images/{selected_cover['id']}/cover",
+                data={"csrf_token": self.csrf()},
+            )
+            self.assertEqual(response.status_code, 302)
+            self.assertEqual(
+                database.get_client_collection(collection_id)["cover_image_id"],
+                selected_cover["id"],
+            )
 
             public_directory = self.client.get(
                 "/client-gallery",
@@ -164,25 +190,51 @@ class ReleaseSmokeTests(unittest.TestCase):
             detail = self.client.get(f"/admin/client-collections/{collection_id}")
             self.assertEqual(detail.status_code, 200)
             self.assertIn(b"Collection setup guide", detail.data)
+            self.assertIn(b"Preview Gallery", detail.data)
+            self.assertIn(b"Set Cover", detail.data)
+            preview = self.client.get(f"/client-gallery/{code}/photos")
+            self.assertEqual(preview.status_code, 200)
+            self.assertIn(b"Manager Preview", preview.data)
+            self.assertIn(b"client-photo-masonry", preview.data)
+            self.assertEqual(len(database.get_collection_activity(collection_id)["visitors"]), 0)
 
             visitor = self.app.test_client()
             cover = visitor.get(f"/client-gallery/{code}/cover")
             self.assertEqual(cover.status_code, 200)
+            rendered_cover = Image.open(io.BytesIO(cover.data)).convert("RGB")
+            red, green, blue = rendered_cover.getpixel((0, 0))
+            self.assertGreater(blue, red)
             cover.close()
-            visitor.get(f"/client-gallery/{code}")
+            unlock_page = visitor.get(f"/client-gallery/{code}")
+            self.assertIn(f"v={selected_cover['id']}".encode(), unlock_page.data)
             with visitor.session_transaction() as session:
                 token = session["_csrf_token"]
+            rejected = visitor.post(
+                f"/client-gallery/{code}",
+                data={
+                    "csrf_token": token,
+                    "name": "Smoke Visitor",
+                    "email": f"visitor-{self.suffix}@example.com",
+                    "pin": "wrong-pin",
+                },
+            )
+            self.assertEqual(rejected.status_code, 200)
+            self.assertIn(b"collection PIN was not accepted", rejected.data)
+            self.assertEqual(len(database.get_collection_activity(collection_id)["visitors"]), 0)
             response = visitor.post(
                 f"/client-gallery/{code}",
                 data={
                     "csrf_token": token,
                     "name": "Smoke Visitor",
                     "email": f"visitor-{self.suffix}@example.com",
-                    "pin": pin,
+                    "pin": f"  {pin}  ",
                 },
             )
             self.assertEqual(response.status_code, 302)
-            self.assertEqual(visitor.get(f"/client-gallery/{code}/photos").status_code, 200)
+            client_gallery = visitor.get(f"/client-gallery/{code}/photos")
+            self.assertEqual(client_gallery.status_code, 200)
+            self.assertIn(b"client-photo-masonry", client_gallery.data)
+            self.assertNotIn(b"Manager Preview", client_gallery.data)
             download = visitor.get(f"/client-gallery/{code}/download/{image['id']}")
             self.assertEqual(download.status_code, 200)
             download.close()
