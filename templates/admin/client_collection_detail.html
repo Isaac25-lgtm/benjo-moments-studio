@@ -60,11 +60,16 @@
     <div class="stats-grid" style="margin-top:18px;">
         <div class="stat-card"><h3>Visitors</h3><div class="value">{{ activity['visitors']|length }}</div></div>
         <div class="stat-card"><h3>Downloads</h3><div class="value">{{ activity['downloads']|length }}</div></div>
+        <div class="stat-card"><h3>Likes</h3><div class="value">{{ activity['likes']|length }}</div></div>
         <div class="stat-card"><h3>Comments</h3><div class="value">{{ activity['comments']|length }}</div></div>
     </div>
     {% if activity['downloads'] %}
     <h3 style="margin:24px 0 10px;">Recent Downloads</h3>
-    <div style="overflow-x:auto;"><table><thead><tr><th>Email</th><th>Photo</th><th>Type</th><th>Time</th></tr></thead><tbody>{% for item in activity['downloads'] %}<tr><td>{{ item['visitor_email'] or '-' }}</td><td>{{ item['image_name'] or 'Entire collection' }}</td><td>{{ item['download_type'] }}</td><td>{{ item['downloaded_at'].strftime('%Y-%m-%d %H:%M') }}</td></tr>{% endfor %}</tbody></table></div>
+    <div style="overflow-x:auto;"><table><thead><tr><th>Email</th><th>Photo</th><th>Quality</th><th>Time</th></tr></thead><tbody>{% for item in activity['downloads'] %}<tr><td>{{ item['visitor_email'] or '-' }}</td><td>{{ item['image_name'] or 'Entire collection' }}</td><td>{{ item['download_type'].replace('_', ' ')|title }}</td><td>{{ item['downloaded_at'].strftime('%Y-%m-%d %H:%M') }}</td></tr>{% endfor %}</tbody></table></div>
+    {% endif %}
+    {% if activity['likes'] %}
+    <h3 style="margin:24px 0 10px;">Client Likes</h3>
+    <div style="overflow-x:auto;"><table><thead><tr><th>Name</th><th>Email</th><th>Photo</th><th>Time</th></tr></thead><tbody>{% for item in activity['likes'] %}<tr><td>{{ item['visitor_name'] }}</td><td>{{ item['visitor_email'] }}</td><td>{{ item['image_name'] }}</td><td>{{ item['created_at'].strftime('%Y-%m-%d %H:%M') }}</td></tr>{% endfor %}</tbody></table></div>
     {% endif %}
     {% if activity['comments'] %}
     <h3 style="margin:24px 0 10px;">Comments</h3>

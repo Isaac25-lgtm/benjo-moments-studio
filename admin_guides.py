@@ -97,7 +97,7 @@ PAGE_GUIDES = {
             "Upload up to 25 JPG, PNG, or WebP photos per batch; repeat uploads as needed.",
             "Choose Set Cover on the photo that should represent the collection and appear behind the PIN form.",
             "Open Preview Gallery to check the layout, then share the code and PIN privately.",
-            "Review visitors, downloads, and comments in Client Activity.",
+            "Review visitors, likes, download qualities, and comments in Client Activity.",
             "Deactivate access or reset the PIN when necessary.",
         ),
         "note": "Deleting a collection permanently removes its photos and activity.",

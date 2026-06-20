@@ -127,6 +127,23 @@
 .masonry-photo-info strong, .masonry-photo-info small { display: block; }
 .masonry-photo-info strong { font-size: 13px; color: #1f2937; }
 .masonry-photo-info small { max-width: 210px; margin-top: 2px; overflow: hidden; color: #718096; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.photo-client-actions { display: flex; align-items: center; gap: 6px; }
+.photo-client-actions form { margin: 0; }
+.photo-like-button { height: 42px; min-width: 42px; padding: 0 9px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid #dbe2ea; border-radius: 6px; background: #fff; color: #64748b; cursor: pointer; }
+.photo-like-button.liked { border-color: #fecdd3; background: #fff1f2; color: #e11d48; }
+.photo-like-button span { font-size: 11px; font-weight: 800; }
+.download-quality-menu { position: relative; }
+.download-quality-menu summary { list-style: none; cursor: pointer; }
+.download-quality-menu summary::-webkit-details-marker { display: none; }
+.collection-download-menu > summary { display: inline-flex; align-items: center; gap: 8px; }
+.collection-download-menu > summary .fa-chevron-down { font-size: 10px; }
+.quality-popover { position: absolute; z-index: 30; top: calc(100% + 8px); right: 0; width: 245px; overflow: hidden; border: 1px solid #dbe2ea; border-radius: 8px; background: #fff; box-shadow: 0 16px 36px rgba(15, 23, 42, .18); }
+.quality-popover a { padding: 12px 14px; display: block; border-bottom: 1px solid #edf2f7; color: #1f2937; text-decoration: none; }
+.quality-popover a:last-child { border-bottom: 0; }
+.quality-popover a:hover { background: #f8fafc; }
+.quality-popover strong, .quality-popover span { display: block; }
+.quality-popover strong { font-size: 13px; }
+.quality-popover span { margin-top: 2px; color: #64748b; font-size: 11px; }
 .photo-comments { border-top: 1px solid #edf2f7; padding: 10px 12px; font-size: 13px; }
 .photo-comments summary { cursor: pointer; font-weight: 700; }
 .photo-comments p { margin: 10px 0; color: #475569; overflow-wrap: anywhere; }
@@ -165,6 +182,8 @@ body.lightbox-open { overflow: hidden; }
     .masonry-photo { margin-bottom: 6px; }
     .masonry-photo-info { min-height: 52px; padding: 8px 2px; }
     .masonry-photo-info small { max-width: 120px; }
+    .photo-like-button { padding: 0 7px; }
+    .photo-download-menu .quality-popover { position: fixed; left: 14px; right: 14px; top: auto; bottom: 14px; width: auto; }
     .gallery-lightbox { padding: 64px 8px 28px; }
     .lightbox-nav { top: auto; bottom: 18px; width: 46px; height: 46px; border-radius: 50%; transform: none; }
     .lightbox-prev { left: calc(50% - 56px); }

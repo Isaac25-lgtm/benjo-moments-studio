@@ -470,6 +470,35 @@ class GalleryComment(Base):
         }
 
 
+class GalleryLike(Base):
+    __tablename__ = "gallery_likes"
+    __table_args__ = (
+        UniqueConstraint("image_id", "visitor_id", name="uq_gallery_like_image_visitor"),
+        Index("ix_gallery_likes_image", "image_id", "created_at"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    image_id = Column(
+        Integer,
+        ForeignKey("client_collection_images.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    visitor_id = Column(
+        Integer,
+        ForeignKey("gallery_visitors.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    def as_dict(self):
+        return {
+            "id": self.id,
+            "image_id": self.image_id,
+            "visitor_id": self.visitor_id,
+            "created_at": self.created_at,
+        }
+
+
 # ---------------------------------------------------------------------------
 # Website Settings (singleton row)
 # ---------------------------------------------------------------------------

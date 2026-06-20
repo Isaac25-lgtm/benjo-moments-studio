@@ -4,12 +4,14 @@ import os
 import tempfile
 import zipfile
 from datetime import datetime
+from io import BytesIO
 
 from flask import (
     Blueprint, abort, flash, redirect, render_template, request, send_file,
     send_from_directory, session, url_for,
 )
 from werkzeug.utils import secure_filename
+from PIL import Image, ImageOps
 
 import config
 import database
@@ -17,6 +19,12 @@ from extensions import limiter
 
 
 client_gallery = Blueprint("client_gallery", __name__)
+
+DOWNLOAD_QUALITIES = {
+    "original": {"label": "Original", "max_edge": None, "jpeg_quality": None},
+    "high": {"label": "High Resolution", "max_edge": 3000, "jpeg_quality": 92},
+    "web": {"label": "Web / Social", "max_edge": 1600, "jpeg_quality": 84},
+}
 
 
 def _access_key(collection_id: int) -> str:
@@ -36,6 +44,40 @@ def _is_admin_session() -> bool:
         and user.get("role") == "admin"
         and session.get("auth_version") == user.get("auth_version")
     )
+
+
+def _requested_quality() -> str:
+    quality = request.args.get("quality", "original").strip().lower()
+    if quality not in DOWNLOAD_QUALITIES:
+        abort(400, description="Unsupported download quality.")
+    return quality
+
+
+def _resized_jpeg(path: str, original_name: str, quality: str):
+    options = DOWNLOAD_QUALITIES[quality]
+    with Image.open(path) as stored:
+        image = ImageOps.exif_transpose(stored)
+        image.thumbnail(
+            (options["max_edge"], options["max_edge"]),
+            Image.Resampling.LANCZOS,
+        )
+        if image.mode in ("RGBA", "LA"):
+            background = Image.new("RGB", image.size, "white")
+            alpha = image.getchannel("A")
+            background.paste(image.convert("RGB"), mask=alpha)
+            image = background
+        elif image.mode != "RGB":
+            image = image.convert("RGB")
+        output = BytesIO()
+        image.save(
+            output,
+            format="JPEG",
+            quality=options["jpeg_quality"],
+            optimize=True,
+        )
+    output.seek(0)
+    stem = os.path.splitext(secure_filename(original_name))[0] or "photo"
+    return output, f"{stem}-{quality}.jpg"
 
 
 def _authorized_collection(code: str):
@@ -146,6 +188,10 @@ def collection_view(code):
     comments_by_image = {}
     for comment in comments:
         comments_by_image.setdefault(comment["image_id"], []).append(comment)
+    like_summary = database.get_gallery_like_summary(
+        collection["id"],
+        None if preview_mode else visitor_id,
+    )
     return render_template(
         "public/client_collection.html",
         settings=database.get_website_settings(),
@@ -154,6 +200,9 @@ def collection_view(code):
         search=search,
         comments_by_image=comments_by_image,
         preview_mode=preview_mode,
+        like_counts=like_summary["counts"],
+        liked_image_ids=like_summary["liked_image_ids"],
+        download_qualities=DOWNLOAD_QUALITIES,
     )
 
 
@@ -185,14 +234,29 @@ def download_photo(code, image_id):
     image = database.get_client_collection_image(image_id)
     if not image or image["collection_id"] != collection["id"]:
         abort(404)
-    database.add_gallery_download(collection["id"], visitor_id, image_id, "image")
     directory = os.path.join(config.UPLOAD_FOLDER, "client_collections", str(collection["id"]))
-    response = send_from_directory(
-        directory,
-        image["filename"],
-        as_attachment=True,
-        download_name=image["original_name"],
-        conditional=True,
+    path = os.path.join(directory, image["filename"])
+    if not os.path.isfile(path):
+        abort(404)
+    quality = _requested_quality()
+    if quality == "original":
+        response = send_from_directory(
+            directory,
+            image["filename"],
+            as_attachment=True,
+            download_name=image["original_name"],
+            conditional=True,
+        )
+    else:
+        output, download_name = _resized_jpeg(path, image["original_name"], quality)
+        response = send_file(
+            output,
+            as_attachment=True,
+            download_name=download_name,
+            mimetype="image/jpeg",
+        )
+    database.add_gallery_download(
+        collection["id"], visitor_id, image_id, f"image_{quality}"
     )
     response.headers["Cache-Control"] = "private, no-store"
     response.headers["Vary"] = "Cookie"
@@ -208,6 +272,7 @@ def download_all(code):
     images = database.get_collection_images_for_visitor(collection["id"])
     if not images:
         abort(404)
+    quality = _requested_quality()
     source = os.path.join(config.UPLOAD_FOLDER, "client_collections", str(collection["id"]))
     temporary = tempfile.NamedTemporaryFile(prefix="benjo-gallery-", suffix=".zip", delete=False)
     temporary.close()
@@ -218,17 +283,26 @@ def download_all(code):
                 path = os.path.join(source, image["filename"])
                 if not os.path.isfile(path):
                     continue
-                archive_name = secure_filename(image["original_name"]) or f"photo-{index}.jpg"
+                if quality == "original":
+                    archive_name = secure_filename(image["original_name"]) or f"photo-{index}.jpg"
+                    payload = None
+                else:
+                    payload, archive_name = _resized_jpeg(path, image["original_name"], quality)
                 if archive_name in used_names:
                     stem, extension = os.path.splitext(archive_name)
                     archive_name = f"{stem}-{index}{extension}"
                 used_names.add(archive_name)
-                archive.write(path, archive_name)
-        database.add_gallery_download(collection["id"], visitor_id, None, "all")
+                if payload is None:
+                    archive.write(path, archive_name)
+                else:
+                    archive.writestr(archive_name, payload.getvalue())
+        database.add_gallery_download(
+            collection["id"], visitor_id, None, f"all_{quality}"
+        )
         response = send_file(
             temporary.name,
             as_attachment=True,
-            download_name=f"{collection['collection_code']}-photos.zip",
+            download_name=f"{collection['collection_code']}-{quality}-photos.zip",
             mimetype="application/zip",
         )
         response.call_on_close(lambda: os.path.exists(temporary.name) and os.remove(temporary.name))
@@ -239,6 +313,23 @@ def download_all(code):
         if os.path.exists(temporary.name):
             os.remove(temporary.name)
         raise
+
+
+@client_gallery.route("/client-gallery/<code>/photo/<int:image_id>/like", methods=["POST"])
+@limiter.limit("60 per hour")
+def like_photo(code, image_id):
+    collection, visitor_id = _authorized_collection(code)
+    if not visitor_id:
+        abort(403)
+    try:
+        liked = database.toggle_gallery_like(image_id, visitor_id)
+        flash("Photo liked." if liked else "Photo removed from your likes.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(
+        url_for("client_gallery.collection_view", code=collection["collection_code"])
+        + f"#photo-{image_id}"
+    )
 
 
 @client_gallery.route("/client-gallery/<code>/photo/<int:image_id>/comment", methods=["POST"])

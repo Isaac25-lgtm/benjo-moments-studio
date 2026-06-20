@@ -26,7 +26,7 @@ import config
 from db import SessionLocal
 from models import (
     Asset, AuditLog, ClientCollection, ClientCollectionImage, ContactMessage,
-    Customer, Expense, GalleryComment, GalleryDownload, GalleryImage,
+    Customer, Expense, GalleryComment, GalleryDownload, GalleryImage, GalleryLike,
     GalleryVisitor, HeroImage, Income, Invoice, PricingPackage,
     ProfessionalService, ServiceCategory, User, WebsiteSettings,
 )
@@ -1936,6 +1936,78 @@ def get_gallery_comments(collection_id: int) -> list[_Row]:
         return result
 
 
+def toggle_gallery_like(image_id: int, visitor_id: int) -> bool:
+    """Toggle a visitor's like and return True when the photo is now liked."""
+    with SessionLocal() as session:
+        image = session.get(ClientCollectionImage, image_id)
+        visitor = session.get(GalleryVisitor, visitor_id)
+        if not image or not visitor or visitor.collection_id != image.collection_id:
+            raise ValueError("The photo is not available in this collection.")
+        existing = session.scalar(
+            select(GalleryLike).where(
+                GalleryLike.image_id == image_id,
+                GalleryLike.visitor_id == visitor_id,
+            )
+        )
+        if existing:
+            session.delete(existing)
+            liked = False
+        else:
+            session.add(GalleryLike(image_id=image_id, visitor_id=visitor_id))
+            liked = True
+        session.commit()
+        return liked
+
+
+def get_gallery_like_summary(collection_id: int, visitor_id: int = None) -> dict:
+    with SessionLocal() as session:
+        count_rows = session.execute(
+            select(GalleryLike.image_id, func.count(GalleryLike.id))
+            .join(ClientCollectionImage, ClientCollectionImage.id == GalleryLike.image_id)
+            .where(ClientCollectionImage.collection_id == collection_id)
+            .group_by(GalleryLike.image_id)
+        ).all()
+        liked_image_ids = set()
+        if visitor_id:
+            liked_image_ids = set(session.scalars(
+                select(GalleryLike.image_id)
+                .join(ClientCollectionImage, ClientCollectionImage.id == GalleryLike.image_id)
+                .where(
+                    ClientCollectionImage.collection_id == collection_id,
+                    GalleryLike.visitor_id == visitor_id,
+                )
+            ).all())
+        return {
+            "counts": {image_id: int(count) for image_id, count in count_rows},
+            "liked_image_ids": liked_image_ids,
+        }
+
+
+def get_gallery_likes(collection_id: int) -> list[_Row]:
+    with SessionLocal() as session:
+        rows = session.execute(
+            select(
+                GalleryLike,
+                GalleryVisitor.email,
+                GalleryVisitor.name,
+                ClientCollectionImage.original_name,
+            )
+            .join(GalleryVisitor, GalleryVisitor.id == GalleryLike.visitor_id)
+            .join(ClientCollectionImage, ClientCollectionImage.id == GalleryLike.image_id)
+            .where(ClientCollectionImage.collection_id == collection_id)
+            .order_by(GalleryLike.created_at.desc())
+            .limit(500)
+        ).all()
+        result = []
+        for like, email, visitor_name, filename in rows:
+            item = _to_row(like)
+            item["visitor_email"] = email
+            item["visitor_name"] = visitor_name or "Guest"
+            item["image_name"] = filename
+            result.append(item)
+        return result
+
+
 def get_collection_activity(collection_id: int) -> dict:
     with SessionLocal() as session:
         visitors = session.scalars(
@@ -1961,6 +2033,7 @@ def get_collection_activity(collection_id: int) -> dict:
             "visitors": _to_rows(visitors),
             "downloads": download_rows,
             "comments": get_gallery_comments(collection_id),
+            "likes": get_gallery_likes(collection_id),
         }
 
 

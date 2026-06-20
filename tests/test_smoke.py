@@ -5,6 +5,7 @@ import os
 import shutil
 import unittest
 import uuid
+import zipfile
 
 from PIL import Image
 from sqlalchemy import delete, select
@@ -144,8 +145,8 @@ class ReleaseSmokeTests(unittest.TestCase):
         try:
             first_image = io.BytesIO()
             second_image = io.BytesIO()
-            Image.new("RGB", (32, 24), color=(220, 45, 80)).save(first_image, format="JPEG")
-            Image.new("RGB", (24, 32), color=(30, 120, 210)).save(second_image, format="JPEG")
+            Image.new("RGB", (2000, 1200), color=(220, 45, 80)).save(first_image, format="JPEG")
+            Image.new("RGB", (1200, 2000), color=(30, 120, 210)).save(second_image, format="JPEG")
             first_image.seek(0)
             second_image.seek(0)
             response = self.client.post(
@@ -235,11 +236,45 @@ class ReleaseSmokeTests(unittest.TestCase):
             self.assertEqual(client_gallery.status_code, 200)
             self.assertIn(b"client-photo-masonry", client_gallery.data)
             self.assertNotIn(b"Manager Preview", client_gallery.data)
+            self.assertIn(b"Web / Social", client_gallery.data)
+            like_url = f"/client-gallery/{code}/photo/{image['id']}/like"
+            self.assertEqual(
+                visitor.post(like_url, data={"csrf_token": token}).status_code,
+                302,
+            )
+            self.assertEqual(len(database.get_collection_activity(collection_id)["likes"]), 1)
+            visitor.post(like_url, data={"csrf_token": token})
+            self.assertEqual(len(database.get_collection_activity(collection_id)["likes"]), 0)
+            visitor.post(like_url, data={"csrf_token": token})
+            self.assertEqual(len(database.get_collection_activity(collection_id)["likes"]), 1)
             download = visitor.get(f"/client-gallery/{code}/download/{image['id']}")
             self.assertEqual(download.status_code, 200)
             download.close()
-            download_all = visitor.get(f"/client-gallery/{code}/download-all")
+            web_download = visitor.get(
+                f"/client-gallery/{code}/download/{image['id']}?quality=web"
+            )
+            self.assertEqual(web_download.status_code, 200)
+            web_image = Image.open(io.BytesIO(web_download.data))
+            self.assertEqual(max(web_image.size), 1600)
+            self.assertIn("-web.jpg", web_download.headers["Content-Disposition"])
+            web_download.close()
+            self.assertEqual(
+                visitor.get(
+                    f"/client-gallery/{code}/download/{image['id']}?quality=unknown"
+                ).status_code,
+                400,
+            )
+            download_all = visitor.get(
+                f"/client-gallery/{code}/download-all?quality=web"
+            )
             self.assertEqual(download_all.status_code, 200)
+            with zipfile.ZipFile(io.BytesIO(download_all.data)) as archive:
+                names = archive.namelist()
+                self.assertEqual(len(names), 2)
+                self.assertTrue(all(name.endswith("-web.jpg") for name in names))
+                with archive.open(names[0]) as member:
+                    zipped_image = Image.open(io.BytesIO(member.read()))
+                    self.assertLessEqual(max(zipped_image.size), 1600)
             download_all.close()
             response = visitor.post(
                 f"/client-gallery/{code}/photo/{image['id']}/comment",
@@ -248,8 +283,14 @@ class ReleaseSmokeTests(unittest.TestCase):
             self.assertEqual(response.status_code, 302)
             activity = database.get_collection_activity(collection_id)
             self.assertEqual(len(activity["visitors"]), 1)
-            self.assertGreaterEqual(len(activity["downloads"]), 2)
+            self.assertGreaterEqual(len(activity["downloads"]), 3)
+            self.assertEqual(len(activity["likes"]), 1)
             self.assertEqual(len(activity["comments"]), 1)
+            manager_activity = self.client.get(
+                f"/admin/client-collections/{collection_id}"
+            )
+            self.assertIn(b"Client Likes", manager_activity.data)
+            self.assertIn(b"Image Web", manager_activity.data)
         finally:
             database.delete_client_collection(collection_id)
             shutil.rmtree(directory, ignore_errors=True)

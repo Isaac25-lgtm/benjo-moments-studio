@@ -203,6 +203,9 @@ Mark each ✅ pass / ❌ fail with notes.
 | CG13 | Paste the correct PIN with surrounding spaces | Access succeeds after safe whitespace normalization |
 | CG14 | Open a photo in the collection | Full-screen preview opens with previous/next controls |
 | CG15 | Upload more than one batch | All batches remain in the same collection; up to 25 or 100 MB are accepted per batch |
+| CG16 | Like, unlike, and re-like a photo | Heart state and count update; manager activity shows the visitor and photo once |
+| CG17 | Download one photo in Original, High, and Web quality | Original is unchanged; High is at most 3000px; Web is at most 1600px |
+| CG18 | Download all with a selected quality | ZIP contains every available photo at the selected quality and activity records that quality |
 
 ---
 
