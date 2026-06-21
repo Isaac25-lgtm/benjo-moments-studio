@@ -192,7 +192,7 @@ Mark each ✅ pass / ❌ fail with notes.
 | CG1 | Create collection without a code/PIN | Unique code and PIN are generated and shown once |
 | CG2 | Upload valid photos | Photos appear in the private collection only |
 | CG3 | Open collection with wrong PIN | Access is rejected |
-| CG4 | Open collection with email and correct PIN | Client sees only that collection |
+| CG4 | Open collection with email and correct PIN | Client first sees the selected full-screen cover, then chooses View Gallery to see only that collection |
 | CG5 | Search inside collection | Caption/filename results are filtered |
 | CG6 | Download one photo | Original downloads and activity is logged |
 | CG7 | Download all | ZIP downloads and activity is logged |
@@ -211,11 +211,12 @@ Mark each ✅ pass / ❌ fail with notes.
 | CG20 | Use a portrait photo as the cover on desktop and mobile | The complete photo stays visible over the full-width background without cropping the face |
 | CG21 | Use Copy or WhatsApp on a manager collection card | The client-specific PIN link is copied or opened for sharing |
 | CG22 | Choose and save a custom PIN | The manager-chosen PIN unlocks the collection and the previous PIN stops working |
-| CG23 | Choose Test PIN as Client while logged in as manager | The PIN screen and full client interaction flow open without logging out |
+| CG23 | Choose Test PIN as Client while logged in as manager | The PIN screen, cover introduction, and full client interaction flow open without logging out |
 | CG24 | View the client photo grid and lightbox | Photo numbers, captions, and filenames stay hidden; downloaded files retain their names |
 | CG25 | Download a photo as a client | A red manager bell badge appears and the alert shows client, collection, quality, and time |
 | CG26 | Mark one or all download alerts as read | The unread count updates for both administrators |
 | CG27 | Select several photos and choose Delete Selected | Only selected photos and stored files are removed; a deleted cover is replaced when another photo remains |
+| CG28 | Submit the correct PIN and revisit the private link | The full-screen collection cover appears before the photo grid without asking for the PIN again |
 
 ---
 

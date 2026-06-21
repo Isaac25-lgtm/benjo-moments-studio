@@ -267,7 +267,13 @@ class ReleaseSmokeTests(unittest.TestCase):
             )
             self.assertEqual(manager_test.status_code, 302)
             self.assertIn("client_view=1", manager_test.headers["Location"])
-            manager_client_gallery = self.client.get(manager_test.headers["Location"])
+            self.assertIn(f"/client-gallery/{code}/welcome", manager_test.headers["Location"])
+            manager_welcome = self.client.get(manager_test.headers["Location"])
+            self.assertEqual(manager_welcome.status_code, 200)
+            self.assertIn(b"View Gallery", manager_welcome.data)
+            manager_client_gallery = self.client.get(
+                f"/client-gallery/{code}/photos?client_view=1"
+            )
             self.assertIn(b"testing the collection as a client", manager_client_gallery.data)
             manager_download = self.client.get(
                 f"/client-gallery/{code}/download/{image['id']}?quality=web"
@@ -282,6 +288,9 @@ class ReleaseSmokeTests(unittest.TestCase):
             red, green, blue = rendered_cover.getpixel((0, 0))
             self.assertGreater(blue, red)
             cover.close()
+            locked_welcome = visitor.get(f"/client-gallery/{code}/welcome")
+            self.assertEqual(locked_welcome.status_code, 302)
+            self.assertIn(f"/client-gallery/{code}", locked_welcome.headers["Location"])
             unlock_page = visitor.get(f"/client-gallery/{code}")
             self.assertIn(f"v={selected_cover['id']}".encode(), unlock_page.data)
             self.assertIn(b"collection-cover-image", unlock_page.data)
@@ -310,6 +319,17 @@ class ReleaseSmokeTests(unittest.TestCase):
                 },
             )
             self.assertEqual(response.status_code, 302)
+            self.assertIn(f"/client-gallery/{code}/welcome", response.headers["Location"])
+            welcome = visitor.get(response.headers["Location"])
+            self.assertEqual(welcome.status_code, 200)
+            self.assertIn(f"Smoke Collection {self.suffix}".upper().encode(), welcome.data.upper())
+            self.assertIn(b"View Gallery", welcome.data)
+            self.assertIn(b"Photography", welcome.data)
+            self.assertIn(f"v={selected_cover['id']}".encode(), welcome.data)
+            self.assertNotIn(b"client-photo-masonry", welcome.data)
+            revisit = visitor.get(f"/client-gallery/{code}")
+            self.assertEqual(revisit.status_code, 302)
+            self.assertIn(f"/client-gallery/{code}/welcome", revisit.headers["Location"])
             client_gallery = visitor.get(f"/client-gallery/{code}/photos")
             self.assertEqual(client_gallery.status_code, 200)
             self.assertIn(b"client-photo-masonry", client_gallery.data)

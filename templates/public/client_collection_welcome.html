@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ collection['title'] }} - {{ settings['site_name'] if settings else 'Benjo Moments' }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/client-gallery.css') }}">
+</head>
+<body class="collection-welcome-body">
+    <main class="collection-welcome">
+        {% if collection['cover_image_id'] %}
+        <div class="collection-welcome-backdrop" aria-hidden="true" style="background-image:url('{{ url_for('client_gallery.collection_cover', code=collection['collection_code'], v=collection['cover_image_id']) }}')"></div>
+        <img class="collection-welcome-image" src="{{ url_for('client_gallery.collection_cover', code=collection['collection_code'], v=collection['cover_image_id']) }}" alt="Cover photo for {{ collection['title'] }}">
+        {% else %}
+        <div class="collection-welcome-placeholder" aria-hidden="true"></div>
+        {% endif %}
+        <div class="collection-welcome-shade"></div>
+
+        <section class="collection-welcome-content" aria-labelledby="collection-welcome-title">
+            <h1 id="collection-welcome-title">{{ collection['title'] }}</h1>
+            {% if collection['event_date'] %}<p>{{ collection['event_date'].strftime('%B %d, %Y') }}</p>{% endif %}
+            <a class="collection-welcome-button" href="{{ url_for('client_gallery.collection_view', code=collection['collection_code'], client_view=1 if client_test_mode else None) }}">View Gallery</a>
+        </section>
+
+        <p class="collection-welcome-brand">{{ settings['site_name'] if settings and settings['site_name'] else 'Benjo Moments' }} Photography</p>
+    </main>
+</body>
+</html>

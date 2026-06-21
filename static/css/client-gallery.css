@@ -43,6 +43,19 @@
 .committee-help { display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin-top: 24px; color: #128c7e; font-weight: 700; text-decoration: none; flex-wrap: wrap; }
 .access-notice { margin-top: 24px; padding: 16px; border: 1px solid #fecaca; background: #fff1f2; color: #9f1239; border-radius: 6px; }
 
+.collection-welcome-body { margin: 0; overflow: hidden; background: #08090d; font-family: 'Manrope', sans-serif; }
+.collection-welcome { position: relative; min-height: 100vh; min-height: 100svh; overflow: hidden; display: grid; place-items: center; isolation: isolate; background: #08090d; color: #fff; }
+.collection-welcome-backdrop { position: absolute; z-index: -4; inset: -32px; background: center / cover no-repeat; filter: blur(28px); opacity: .62; transform: scale(1.08); }
+.collection-welcome-image { position: absolute; z-index: -3; inset: 0; width: 100%; height: 100%; display: block; object-fit: contain; object-position: center; }
+.collection-welcome-placeholder { position: absolute; z-index: -3; inset: 0; background: #12141c; }
+.collection-welcome-shade { position: absolute; z-index: -2; inset: 0; background: linear-gradient(180deg, rgba(3, 4, 8, .3) 0%, rgba(3, 4, 8, .42) 45%, rgba(3, 4, 8, .76) 100%); }
+.collection-welcome-content { width: min(920px, calc(100% - 40px)); padding: 36px 20px; text-align: center; text-shadow: 0 3px 22px rgba(0, 0, 0, .72); }
+.collection-welcome-content h1 { margin: 0; color: #fff; font-size: 72px; font-weight: 500; line-height: 1.02; text-transform: uppercase; overflow-wrap: anywhere; }
+.collection-welcome-content p { margin: 18px 0 0; color: rgba(255, 255, 255, .92); font-size: 18px; font-weight: 500; text-transform: uppercase; }
+.collection-welcome-button { margin-top: 32px; padding: 13px 30px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, .82); color: #fff; font-size: 12px; font-weight: 700; text-decoration: none; text-transform: uppercase; transition: background .2s ease, color .2s ease; }
+.collection-welcome-button:hover, .collection-welcome-button:focus-visible { background: #fff; color: #11131a; outline: none; }
+.collection-welcome-brand { position: absolute; z-index: 1; right: 20px; bottom: max(24px, env(safe-area-inset-bottom)); left: 20px; margin: 0; color: rgba(255, 255, 255, .86); font-size: 11px; font-weight: 600; letter-spacing: 0; text-align: center; text-transform: uppercase; text-shadow: 0 2px 12px rgba(0, 0, 0, .8); }
+
 .client-unlock-shell {
     position: relative;
     overflow: hidden;
@@ -171,6 +184,11 @@
 body.lightbox-open { overflow: hidden; }
 
 @media (max-width: 720px) {
+    .collection-welcome-content { align-self: center; padding-bottom: 72px; }
+    .collection-welcome-content h1 { font-size: 44px; }
+    .collection-welcome-content p { margin-top: 14px; }
+    .collection-welcome-button { margin-top: 26px; }
+    .collection-welcome-brand { font-size: 9px; }
     .client-search-shell { padding: 104px 0 36px; }
     .client-search-panel { width: calc(100% - 28px); max-width: calc(100vw - 28px); padding: 28px 20px; }
     .client-search-panel h1 { font-size: 32px; }
@@ -209,5 +227,6 @@ body.lightbox-open { overflow: hidden; }
 }
 
 @media (max-width: 380px) {
+    .collection-welcome-content h1 { font-size: 36px; }
     .collection-directory-grid { grid-template-columns: 1fr; }
 }

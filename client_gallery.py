@@ -154,7 +154,7 @@ def collection_unlock(code):
         ), 410
     if session.get(_access_key(collection["id"])):
         return redirect(url_for(
-            "client_gallery.collection_view",
+            "client_gallery.collection_welcome",
             code=collection["collection_code"],
             client_view=1 if client_test_mode else None,
         ))
@@ -173,7 +173,7 @@ def collection_unlock(code):
             session[_access_key(collection["id"])] = unlocked["visitor_id"]
             session.permanent = True
             return redirect(url_for(
-                "client_gallery.collection_view",
+                "client_gallery.collection_welcome",
                 code=collection["collection_code"],
                 client_view=1 if client_test_mode else None,
             ))
@@ -184,6 +184,30 @@ def collection_unlock(code):
         collection=collection,
         expired=False,
         manager_client_test=client_test_mode,
+    )
+
+
+@client_gallery.route("/client-gallery/<code>/welcome")
+def collection_welcome(code):
+    client_test_mode = _is_manager_client_test()
+    preview_mode = _is_admin_session() and not client_test_mode
+    if preview_mode:
+        collection = database.get_client_collection_by_code(code)
+        if not collection:
+            abort(404)
+    else:
+        collection, visitor_id = _authorized_collection(code)
+        if not visitor_id:
+            return redirect(url_for(
+                "client_gallery.collection_unlock",
+                code=collection["collection_code"],
+                client_view=1 if client_test_mode else None,
+            ))
+    return render_template(
+        "public/client_collection_welcome.html",
+        settings=database.get_website_settings(),
+        collection=collection,
+        client_test_mode=client_test_mode,
     )
 
 
