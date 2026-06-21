@@ -9,7 +9,6 @@
     {% endif %}
     <div class="client-unlock-shade"></div>
     <div class="client-unlock-heading">
-        <p class="eyebrow">Private Client Collection</p>
         <h1>{{ collection['title'] }}</h1>
         <p>{{ collection['client_name'] }}{% if collection['event_date'] %} &middot; {{ collection['event_date'].strftime('%d %B %Y') }}{% endif %}{% if collection['location'] %} &middot; {{ collection['location'] }}{% endif %}</p>
     </div>

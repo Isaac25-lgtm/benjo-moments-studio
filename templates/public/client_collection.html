@@ -10,7 +10,7 @@
     <div class="collection-hero-shade"></div>
     <div class="container collection-hero-inner">
         <div>
-            <p class="eyebrow">{{ 'Manager Preview' if preview_mode else 'Private Client Collection' }}</p>
+            {% if preview_mode %}<p class="eyebrow">Manager Preview</p>{% endif %}
             <h1>{{ collection['title'] }}</h1>
             <p>{{ collection['client_name'] }}{% if collection['event_date'] %} &middot; {{ collection['event_date'].strftime('%d %B %Y') }}{% endif %}{% if collection['location'] %} &middot; {{ collection['location'] }}{% endif %}</p>
         </div>

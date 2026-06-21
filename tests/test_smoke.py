@@ -259,6 +259,7 @@ class ReleaseSmokeTests(unittest.TestCase):
             unlock_page = visitor.get(f"/client-gallery/{code}")
             self.assertIn(f"v={selected_cover['id']}".encode(), unlock_page.data)
             self.assertIn(b"collection-cover-image", unlock_page.data)
+            self.assertNotIn(b"Private Client Collection", unlock_page.data)
             with visitor.session_transaction() as session:
                 token = session["_csrf_token"]
             rejected = visitor.post(
@@ -288,6 +289,7 @@ class ReleaseSmokeTests(unittest.TestCase):
             self.assertIn(b"client-photo-masonry", client_gallery.data)
             self.assertIn(b"collection-cover-image", client_gallery.data)
             self.assertNotIn(b"Manager Preview", client_gallery.data)
+            self.assertNotIn(b"Private Client Collection", client_gallery.data)
             self.assertIn(b"Web / Social", client_gallery.data)
             self.assertNotIn(f"smoke-first-{self.suffix}.jpg".encode(), client_gallery.data)
             self.assertNotIn(f"Smoke photo {self.suffix}".encode(), client_gallery.data)
