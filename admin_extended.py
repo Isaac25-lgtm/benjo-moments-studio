@@ -302,27 +302,66 @@ def upload_collection_images(collection_id):
         return redirect(url_for("admin_extended.client_collection_detail", collection_id=collection_id))
     destination = os.path.join(config.UPLOAD_FOLDER, "client_collections", str(collection_id))
     caption = request.form.get("caption", "").strip()[:1000]
+    duplicate_action = request.form.get("duplicate_action", "skip").strip().lower()
+    if duplicate_action not in {"skip", "replace"}:
+        duplicate_action = "skip"
+    existing_by_name = {
+        str(image["original_name"]).strip().casefold(): image
+        for image in collection["images"]
+    }
     uploaded = 0
+    replaced = 0
+    skipped = 0
+    file_failures = 0
     if len(files) > 25:
         flash("Only the first 25 photos were processed. Upload the rest in another batch.", "warning")
     for file in files[:25]:
         if not file.filename:
+            continue
+        original_name = secure_filename(file.filename)
+        duplicate = existing_by_name.get(original_name.casefold()) if original_name else None
+        if duplicate and duplicate_action == "skip":
+            skipped += 1
             continue
         try:
             extension = validate_image(file)
             filename = f"{uuid.uuid4().hex}.{extension}"
             save_image(file, destination, filename)
             try:
-                database.add_client_collection_image(
-                    collection_id, filename, secure_filename(file.filename) or filename, caption, uploaded
-                )
+                if duplicate:
+                    updated = database.replace_client_collection_image(
+                        duplicate["id"], filename, original_name or filename, caption
+                    )
+                    old_path = os.path.abspath(os.path.join(destination, updated["old_filename"]))
+                    root = os.path.abspath(destination)
+                    try:
+                        if os.path.commonpath([root, old_path]) == root and os.path.isfile(old_path):
+                            os.remove(old_path)
+                    except (OSError, ValueError):
+                        file_failures += 1
+                    existing_by_name[(original_name or filename).casefold()] = updated
+                    replaced += 1
+                else:
+                    added = database.add_client_collection_image(
+                        collection_id, filename, original_name or filename, caption, uploaded
+                    )
+                    existing_by_name[(original_name or filename).casefold()] = added
+                    uploaded += 1
             except Exception:
                 os.remove(os.path.join(destination, filename))
                 raise
-            uploaded += 1
         except InvalidImageError as exc:
             flash(f"{file.filename}: {exc}", "warning")
-    flash(f"{uploaded} client photo{'s' if uploaded != 1 else ''} uploaded.", "success")
+    results = []
+    if uploaded:
+        results.append(f"{uploaded} new photo{'s' if uploaded != 1 else ''} uploaded")
+    if replaced:
+        results.append(f"{replaced} duplicate{'s' if replaced != 1 else ''} replaced")
+    if skipped:
+        results.append(f"{skipped} duplicate{'s' if skipped != 1 else ''} skipped")
+    flash(("; ".join(results) + ".") if results else "No photos were uploaded.", "success" if uploaded or replaced else "info")
+    if file_failures:
+        flash(f"{file_failures} replaced file{'s' if file_failures != 1 else ''} could not be removed.", "warning")
     return redirect(url_for("admin_extended.client_collection_detail", collection_id=collection_id))
 
 

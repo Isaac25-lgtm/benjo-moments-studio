@@ -218,6 +218,8 @@ Mark each ✅ pass / ❌ fail with notes.
 | CG27 | Select several photos and choose Delete Selected | Only selected photos and stored files are removed; a deleted cover is replaced when another photo remains |
 | CG28 | Submit the correct PIN and revisit the private link | The full-screen collection cover appears before the photo grid without asking for the PIN again |
 | CG29 | Open Client Delivery and select a collection | The visual collection library opens a cover-led workspace with Highlights, Add Photos, share, settings, activity, and bulk controls |
+| CG30 | Drag photos into Add Photos | Selected files are listed and upload into the open collection |
+| CG31 | Upload a filename that already exists | Manager can skip it or replace the stored photo while preserving its image ID and cover selection |
 
 ---
 

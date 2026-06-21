@@ -1821,7 +1821,7 @@ def delete_client_collection(collection_id: int) -> Optional[_Row]:
         return result
 
 
-def add_client_collection_image(collection_id, filename, original_name, caption="", display_order=0) -> None:
+def add_client_collection_image(collection_id, filename, original_name, caption="", display_order=0) -> _Row:
     actor = _actor_email()
     with SessionLocal() as session:
         collection = session.get(ClientCollection, collection_id)
@@ -1841,6 +1841,34 @@ def add_client_collection_image(collection_id, filename, original_name, caption=
         collection.updated_at = datetime.utcnow()
         session.commit()
         log_audit(actor, "create", "client_collection_image", row.id, _audit_details(collection_id=collection_id))
+        return _to_row(row)
+
+
+def replace_client_collection_image(image_id, filename, original_name, caption="") -> _Row:
+    actor = _actor_email()
+    with SessionLocal() as session:
+        row = session.get(ClientCollectionImage, image_id)
+        if not row:
+            raise ValueError("Client photo not found.")
+        old_filename = row.filename
+        row.filename = str(filename).strip()[:255]
+        row.original_name = str(original_name).strip()[:255]
+        row.caption = str(caption).strip()[:1000]
+        row.uploaded_at = datetime.utcnow()
+        collection = session.get(ClientCollection, row.collection_id)
+        if collection:
+            collection.updated_at = datetime.utcnow()
+        session.commit()
+        result = _to_row(row)
+        result["old_filename"] = old_filename
+        log_audit(
+            actor,
+            "replace",
+            "client_collection_image",
+            row.id,
+            _audit_details(collection_id=row.collection_id, original_name=row.original_name),
+        )
+        return result
 
 
 def get_client_collection_image(image_id: int) -> Optional[_Row]:

@@ -189,6 +189,72 @@ class ReleaseSmokeTests(unittest.TestCase):
             self.assertEqual(stored_collection["cover_image_id"], image["id"])
             bulk_file = os.path.join(directory, bulk_image["filename"])
             self.assertTrue(os.path.isfile(bulk_file))
+
+            skipped_duplicate = io.BytesIO()
+            Image.new("RGB", (900, 700), color=(80, 80, 80)).save(
+                skipped_duplicate, format="JPEG"
+            )
+            skipped_duplicate.seek(0)
+            original_stored_filename = image["filename"]
+            response = self.client.post(
+                f"/admin/client-collections/{collection_id}/upload",
+                data={
+                    "csrf_token": self.csrf(),
+                    "duplicate_action": "skip",
+                    "images": (
+                        skipped_duplicate,
+                        f"smoke-first-{self.suffix}.jpg",
+                    ),
+                },
+                content_type="multipart/form-data",
+                follow_redirects=True,
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(b"1 duplicate skipped", response.data)
+            after_skip = database.get_client_collection(collection_id)
+            self.assertEqual(len(after_skip["images"]), 3)
+            self.assertEqual(
+                next(item for item in after_skip["images"] if item["id"] == image["id"])["filename"],
+                original_stored_filename,
+            )
+
+            replacement_image = io.BytesIO()
+            Image.new("RGB", (2000, 1200), color=(245, 190, 20)).save(
+                replacement_image, format="JPEG"
+            )
+            replacement_image.seek(0)
+            old_image_path = os.path.join(directory, original_stored_filename)
+            response = self.client.post(
+                f"/admin/client-collections/{collection_id}/upload",
+                data={
+                    "csrf_token": self.csrf(),
+                    "duplicate_action": "replace",
+                    "caption": "Replacement upload",
+                    "images": (
+                        replacement_image,
+                        f"smoke-first-{self.suffix}.jpg",
+                    ),
+                },
+                content_type="multipart/form-data",
+                follow_redirects=True,
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(b"1 duplicate replaced", response.data)
+            after_replace = database.get_client_collection(collection_id)
+            self.assertEqual(len(after_replace["images"]), 3)
+            self.assertEqual(after_replace["cover_image_id"], image["id"])
+            image = next(
+                item for item in after_replace["images"] if item["id"] == image["id"]
+            )
+            self.assertNotEqual(image["filename"], original_stored_filename)
+            self.assertFalse(os.path.exists(old_image_path))
+            replacement_path = os.path.join(directory, image["filename"])
+            self.assertTrue(os.path.isfile(replacement_path))
+            with Image.open(replacement_path) as replacement_stored:
+                red, green, blue = replacement_stored.convert("RGB").getpixel((0, 0))
+                self.assertGreater(red, green)
+                self.assertGreater(green, blue)
+
             self.client.post(
                 f"/admin/client-collections/{collection_id}/images/{bulk_image['id']}/cover",
                 data={"csrf_token": self.csrf()},
@@ -248,6 +314,9 @@ class ReleaseSmokeTests(unittest.TestCase):
             self.assertIn(b"workspace-photo-grid", detail.data)
             self.assertIn(b"Highlights", detail.data)
             self.assertIn(b"Add Photos", detail.data)
+            self.assertIn(b"collection-dropzone", detail.data)
+            self.assertIn(b"duplicate-upload-modal", detail.data)
+            self.assertIn(b"Skip Duplicates", detail.data)
             self.assertIn(f"/client-gallery/{code}".encode(), detail.data)
             self.assertIn(b"Test PIN as Client", detail.data)
             self.assertIn(b"Delete Selected", detail.data)

@@ -82,7 +82,18 @@
             <div class="workspace-management-panels">
                 <details class="workspace-panel" id="upload-photos" {% if not collection['images'] %}open{% endif %}>
                     <summary><span><i class="fas fa-cloud-arrow-up"></i><strong>Upload Client Photos</strong><small>Add up to 25 photos per batch</small></span><i class="fas fa-chevron-down"></i></summary>
-                    <div class="workspace-panel-body"><form action="{{ url_for('admin_extended.upload_collection_images', collection_id=collection['id']) }}" method="POST" enctype="multipart/form-data"><div class="form-row"><div class="form-group"><label>Photos <small>(JPG, PNG, or WebP; up to 100 MB per batch)</small></label><input type="file" name="images" accept="image/jpeg,image/png,image/webp" multiple required></div><div class="form-group"><label>Shared caption <small>(optional)</small></label><input name="caption"></div></div><button class="manager-command manager-command-primary"><i class="fas fa-upload"></i> Upload Photos</button></form></div>
+                    <div class="workspace-panel-body">
+                        <form id="collection-upload-form" action="{{ url_for('admin_extended.upload_collection_images', collection_id=collection['id']) }}" method="POST" enctype="multipart/form-data">
+                            <input type="hidden" id="duplicate-action" name="duplicate_action" value="">
+                            <div class="collection-upload-grid">
+                                <div class="collection-dropzone" id="collection-dropzone">
+                                    <input class="visually-hidden-file" id="collection-photo-input" type="file" name="images" accept="image/jpeg,image/png,image/webp" multiple required>
+                                    <label for="collection-photo-input"><i class="fas fa-cloud-arrow-up"></i><strong>Drag and drop photos here</strong><span>or click to choose JPG, PNG, or WebP files</span><small>Up to 25 photos or 100 MB per batch</small></label>
+                                </div>
+                                <div class="collection-upload-options"><div class="form-group"><label>Shared caption <small>(optional)</small></label><input name="caption" placeholder="Applied to this upload batch"></div><div class="selected-photo-summary" id="selected-photo-summary"><i class="far fa-images"></i><span>No photos selected</span></div><button class="manager-command manager-command-primary"><i class="fas fa-upload"></i> Upload Photos</button></div>
+                            </div>
+                        </form>
+                    </div>
                 </details>
 
                 <details class="workspace-panel" id="client-share-panel">
@@ -108,7 +119,45 @@
     </div>
 </section>
 
+<div class="duplicate-upload-modal" id="duplicate-upload-modal" hidden aria-hidden="true">
+    <div class="duplicate-upload-dialog" role="dialog" aria-modal="true" aria-labelledby="duplicate-upload-title">
+        <button class="duplicate-modal-close" type="button" onclick="closeDuplicateModal()" title="Cancel upload" aria-label="Cancel upload"><i class="fas fa-times"></i></button>
+        <p class="manager-eyebrow" id="duplicate-upload-count">Duplicates found</p>
+        <h2 id="duplicate-upload-title">Some photos already exist</h2>
+        <p>Choose whether to keep the photos already in this collection or replace them with the files you are uploading.</p>
+        <ul class="duplicate-file-list" id="duplicate-file-list"></ul>
+        <div class="duplicate-modal-actions"><button class="manager-command manager-command-secondary" type="button" onclick="submitCollectionUpload('skip')">Skip Duplicates</button><button class="manager-command manager-command-primary" type="button" onclick="submitCollectionUpload('replace')"><i class="fas fa-arrows-rotate"></i> Replace</button></div>
+    </div>
+</div>
+
 <script>
+var existingCollectionPhotoNames = new Set({{ collection['images']|map(attribute='original_name')|list|tojson }}.map(function(name) { return normalizePhotoName(name); }));
+
+function normalizePhotoName(name) {
+    return String(name || '').normalize('NFKD').replace(/[^\x00-\x7F]/g, '').replace(/[\\/]+/g, ' ').trim().replace(/\s+/g, '_').replace(/[^A-Za-z0-9_.-]/g, '').replace(/^[._]+|[._]+$/g, '').toLowerCase();
+}
+function formatFileSize(bytes) { if (bytes < 1024 * 1024) return Math.max(1, Math.round(bytes / 1024)) + ' KB'; return (bytes / (1024 * 1024)).toFixed(1) + ' MB'; }
+function selectedCollectionFiles() { var input = document.getElementById('collection-photo-input'); return input ? Array.from(input.files || []) : []; }
+function updateSelectedPhotoSummary() {
+    var files = selectedCollectionFiles(); var summary = document.getElementById('selected-photo-summary'); var action = document.getElementById('duplicate-action');
+    if (action) action.value = '';
+    if (!summary) return;
+    if (!files.length) { summary.innerHTML = '<i class="far fa-images"></i><span>No photos selected</span>'; return; }
+    var total = files.reduce(function(sum, file) { return sum + file.size; }, 0);
+    summary.innerHTML = '<i class="fas fa-check"></i><span><strong>' + files.length + ' photo' + (files.length === 1 ? '' : 's') + '</strong><small>' + formatFileSize(total) + ' selected</small></span>';
+}
+function findDuplicateUploads() { return selectedCollectionFiles().filter(function(file) { return existingCollectionPhotoNames.has(normalizePhotoName(file.name)); }); }
+function openDuplicateModal(files) {
+    var modal = document.getElementById('duplicate-upload-modal'); var list = document.getElementById('duplicate-file-list'); var count = document.getElementById('duplicate-upload-count');
+    count.textContent = files.length + ' duplicate' + (files.length === 1 ? '' : 's') + ' found';
+    list.innerHTML = '';
+    files.forEach(function(file) { var item = document.createElement('li'); item.innerHTML = '<i class="far fa-image"></i><span>' + escapeUploadText(file.name) + '</span><small>' + formatFileSize(file.size) + '</small>'; list.appendChild(item); });
+    modal.hidden = false; modal.setAttribute('aria-hidden', 'false'); document.body.classList.add('duplicate-modal-open');
+}
+function closeDuplicateModal() { var modal = document.getElementById('duplicate-upload-modal'); modal.hidden = true; modal.setAttribute('aria-hidden', 'true'); document.body.classList.remove('duplicate-modal-open'); }
+function submitCollectionUpload(action) { document.getElementById('duplicate-action').value = action; closeDuplicateModal(); document.getElementById('collection-upload-form').submit(); }
+function escapeUploadText(value) { var node = document.createElement('span'); node.textContent = value; return node.innerHTML; }
+
 function openWorkspacePanel(id) {
     var panel = document.getElementById(id); if (!panel) return; panel.open = true; panel.scrollIntoView({behavior: 'smooth', block: 'start'});
 }
@@ -124,5 +173,17 @@ function generateManagerPin(inputId) { var input = document.getElementById(input
 function updateBulkPhotoSelection() { var checked = document.querySelectorAll('.bulk-photo-checkbox:checked').length; var count = document.getElementById('bulk-photo-count'); var button = document.getElementById('bulk-delete-button'); var toolbar = document.querySelector('.bulk-photo-toolbar'); if (count) count.textContent = checked; if (button) button.disabled = checked === 0; if (toolbar) toolbar.classList.toggle('has-selection', checked > 0); }
 function setAllPhotosSelected(selected) { document.querySelectorAll('.bulk-photo-checkbox').forEach(function(checkbox) { checkbox.checked = selected; }); updateBulkPhotoSelection(); }
 function confirmBulkPhotoDelete() { var count = document.querySelectorAll('.bulk-photo-checkbox:checked').length; return count > 0 && window.confirm('Permanently delete ' + count + ' selected photo' + (count === 1 ? '' : 's') + '? This cannot be undone.'); }
+
+(function setupCollectionDropzone() {
+    var form = document.getElementById('collection-upload-form'); var input = document.getElementById('collection-photo-input'); var dropzone = document.getElementById('collection-dropzone'); var modal = document.getElementById('duplicate-upload-modal');
+    if (!form || !input || !dropzone) return;
+    input.addEventListener('change', updateSelectedPhotoSummary);
+    ['dragenter', 'dragover'].forEach(function(eventName) { dropzone.addEventListener(eventName, function(event) { event.preventDefault(); dropzone.classList.add('is-dragging'); }); });
+    ['dragleave', 'drop'].forEach(function(eventName) { dropzone.addEventListener(eventName, function(event) { event.preventDefault(); dropzone.classList.remove('is-dragging'); }); });
+    dropzone.addEventListener('drop', function(event) { if (!event.dataTransfer || !event.dataTransfer.files.length) return; try { input.files = event.dataTransfer.files; } catch (error) { return; } updateSelectedPhotoSummary(); });
+    form.addEventListener('submit', function(event) { if (document.getElementById('duplicate-action').value) return; var duplicates = findDuplicateUploads(); if (!duplicates.length) return; event.preventDefault(); openDuplicateModal(duplicates); });
+    modal.addEventListener('click', function(event) { if (event.target === modal) closeDuplicateModal(); });
+    document.addEventListener('keydown', function(event) { if (event.key === 'Escape' && !modal.hidden) closeDuplicateModal(); });
+})();
 </script>
 {% endblock %}

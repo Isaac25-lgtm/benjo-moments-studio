@@ -94,7 +94,8 @@ PAGE_GUIDES = {
         "summary": "Prepare this collection, upload photos, and monitor client activity.",
         "steps": (
             "Use the left collection rail to open Add Photos, Client Share Link, Settings and PIN, or Client Activity.",
-            "Choose Add Photos and upload up to 25 JPG, PNG, or WebP photos per batch; repeat as needed.",
+            "Choose Add Photos, then drag files into the upload area or click it to select up to 25 JPG, PNG, or WebP photos per batch.",
+            "When duplicate filenames are found, choose Skip Duplicates to keep the existing photos or Replace to update them.",
             "Review the Highlights grid, select several photos when needed, and choose Delete Selected.",
             "Use the image control on a photo to make it the cover shown behind the PIN form and after login.",
             "Open Preview Gallery to check the layout and confirm that the full cover photo is framed correctly.",
