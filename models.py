@@ -426,6 +426,7 @@ class GalleryDownload(Base):
     )
     download_type = Column(String(20), nullable=False, default="image")
     ip_address = Column(String(64), nullable=True)
+    is_seen = Column(Boolean, nullable=False, default=False)
     downloaded_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     def as_dict(self):
@@ -436,6 +437,7 @@ class GalleryDownload(Base):
             "visitor_id": self.visitor_id,
             "download_type": self.download_type,
             "ip_address": self.ip_address,
+            "is_seen": self.is_seen,
             "downloaded_at": self.downloaded_at,
         }
 

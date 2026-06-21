@@ -16,15 +16,16 @@
         </div>
         <div class="collection-actions">
             {% if preview_mode %}<a class="btn btn-primary" href="{{ url_for('admin_extended.client_collection_detail', collection_id=collection['id']) }}"><i class="fas fa-arrow-left"></i> Manage Collection</a>
-            {% else %}<details class="download-quality-menu collection-download-menu"><summary class="btn btn-primary"><i class="fas fa-download"></i> Download All <i class="fas fa-chevron-down"></i></summary><div class="quality-popover">{% for key, option in download_qualities.items() %}<a href="{{ url_for('client_gallery.download_all', code=collection['collection_code'], quality=key) }}"><strong>{{ option['label'] }}</strong><span>{% if key == 'original' %}Exact uploaded files{% elif key == 'high' %}Up to 3000px for printing{% else %}Up to 1600px for sharing{% endif %}</span></a>{% endfor %}</div></details><form action="{{ url_for('client_gallery.lock_collection', code=collection['collection_code']) }}" method="POST"><button class="icon-command" title="Lock collection" aria-label="Lock collection"><i class="fas fa-lock"></i></button></form>{% endif %}
+            {% else %}<details class="download-quality-menu collection-download-menu"><summary class="btn btn-primary"><i class="fas fa-download"></i> Download All <i class="fas fa-chevron-down"></i></summary><div class="quality-popover">{% for key, option in download_qualities.items() %}<a href="{{ url_for('client_gallery.download_all', code=collection['collection_code'], quality=key) }}"><strong>{{ option['label'] }}</strong><span>{% if key == 'original' %}Exact uploaded files{% elif key == 'high' %}Up to 3000px for printing{% else %}Up to 1600px for sharing{% endif %}</span></a>{% endfor %}</div></details><form action="{{ url_for('client_gallery.lock_collection', code=collection['collection_code']) }}" method="POST">{% if client_test_mode %}<input type="hidden" name="client_view" value="1">{% endif %}<button class="icon-command" title="Lock collection" aria-label="Lock collection"><i class="fas fa-lock"></i></button></form>{% endif %}
         </div>
     </div>
 </section>
 
 <main class="client-collection-main container collection-wide">
     {% if preview_mode %}<div class="manager-preview-notice"><i class="fas fa-eye"></i><div><strong>You are previewing the client gallery.</strong><span>Downloads and comments are disabled in manager preview and no visitor activity is recorded.</span></div></div>{% endif %}
+    {% if client_test_mode %}<div class="manager-preview-notice manager-client-test-banner"><i class="fas fa-user-check"></i><div><strong>You are testing the collection as a client.</strong><span>PIN access, likes, comments, and downloads behave exactly as they do for the client.</span></div></div>{% endif %}
     <div class="collection-toolbar">
-        <form method="GET" class="photo-search"><i class="fas fa-search"></i><input name="q" value="{{ search }}" placeholder="Search captions or photo names"><button class="btn btn-primary">Search</button></form>
+        <form method="GET" class="photo-search">{% if client_test_mode %}<input type="hidden" name="client_view" value="1">{% endif %}<i class="fas fa-search"></i><input name="q" value="{{ search }}" placeholder="Search photos"><button class="btn btn-primary">Search</button></form>
         <span>{{ images|length }} photo{{ '' if images|length == 1 else 's' }}</span>
     </div>
     {% if collection['description'] %}<p class="collection-description">{{ collection['description'] }}</p>{% endif %}
@@ -32,18 +33,15 @@
     <div class="client-photo-masonry">
         {% for image in images %}
         <article class="masonry-photo" id="photo-{{ image['id'] }}">
-            <button type="button" class="masonry-photo-open" data-full="{{ url_for('client_gallery.collection_photo', code=collection['collection_code'], image_id=image['id']) }}" data-title="{{ image['caption'] or image['original_name'] }}">
-                <img src="{{ url_for('client_gallery.collection_photo', code=collection['collection_code'], image_id=image['id']) }}" alt="{{ image['caption'] or image['original_name'] }}" loading="lazy">
+            <button type="button" class="masonry-photo-open" data-full="{{ url_for('client_gallery.collection_photo', code=collection['collection_code'], image_id=image['id']) }}" aria-label="Open photo preview">
+                <img src="{{ url_for('client_gallery.collection_photo', code=collection['collection_code'], image_id=image['id']) }}" alt="Photo from {{ collection['title'] }}" loading="lazy">
                 <span><i class="fas fa-expand"></i></span>
             </button>
-            <div class="masonry-photo-info">
-                <div><strong>{{ image['caption'] or 'Photo ' ~ loop.index }}</strong><small>{{ image['original_name'] }}</small></div>
-                {% if not preview_mode %}<div class="photo-client-actions"><form action="{{ url_for('client_gallery.like_photo', code=collection['collection_code'], image_id=image['id']) }}" method="POST"><button class="photo-like-button {% if image['id'] in liked_image_ids %}liked{% endif %}" title="{{ 'Unlike' if image['id'] in liked_image_ids else 'Like' }} photo" aria-label="{{ 'Unlike' if image['id'] in liked_image_ids else 'Like' }} photo" aria-pressed="{{ 'true' if image['id'] in liked_image_ids else 'false' }}"><i class="{{ 'fas' if image['id'] in liked_image_ids else 'far' }} fa-heart"></i><span>{{ like_counts.get(image['id'], 0) }}</span></button></form><details class="download-quality-menu photo-download-menu"><summary class="icon-command" title="Choose download quality" aria-label="Choose download quality"><i class="fas fa-download"></i></summary><div class="quality-popover">{% for key, option in download_qualities.items() %}<a href="{{ url_for('client_gallery.download_photo', code=collection['collection_code'], image_id=image['id'], quality=key) }}"><strong>{{ option['label'] }}</strong><span>{% if key == 'original' %}Exact file{% elif key == 'high' %}Up to 3000px{% else %}Up to 1600px{% endif %}</span></a>{% endfor %}</div></details></div>{% endif %}
-            </div>
+            {% if not preview_mode %}<div class="masonry-photo-info"><div class="photo-client-actions"><form action="{{ url_for('client_gallery.like_photo', code=collection['collection_code'], image_id=image['id'], client_view=1 if client_test_mode else None) }}" method="POST"><button class="photo-like-button {% if image['id'] in liked_image_ids %}liked{% endif %}" title="{{ 'Unlike' if image['id'] in liked_image_ids else 'Like' }} photo" aria-label="{{ 'Unlike' if image['id'] in liked_image_ids else 'Like' }} photo" aria-pressed="{{ 'true' if image['id'] in liked_image_ids else 'false' }}"><i class="{{ 'fas' if image['id'] in liked_image_ids else 'far' }} fa-heart"></i><span>{{ like_counts.get(image['id'], 0) }}</span></button></form><details class="download-quality-menu photo-download-menu"><summary class="icon-command" title="Choose download quality" aria-label="Choose download quality"><i class="fas fa-download"></i></summary><div class="quality-popover">{% for key, option in download_qualities.items() %}<a href="{{ url_for('client_gallery.download_photo', code=collection['collection_code'], image_id=image['id'], quality=key) }}"><strong>{{ option['label'] }}</strong><span>{% if key == 'original' %}Exact file{% elif key == 'high' %}Up to 3000px{% else %}Up to 1600px{% endif %}</span></a>{% endfor %}</div></details></div></div>{% endif %}
             {% if not preview_mode %}<details class="photo-comments">
                 <summary><i class="far fa-comment"></i> Comments{% if comments_by_image.get(image['id']) %} ({{ comments_by_image[image['id']]|length }}){% endif %}</summary>
                 {% for comment in comments_by_image.get(image['id'], []) %}<p><strong>{{ comment['visitor_name'] }}</strong> {{ comment['comment'] }}</p>{% endfor %}
-                <form action="{{ url_for('client_gallery.comment_on_photo', code=collection['collection_code'], image_id=image['id']) }}" method="POST"><input name="comment" maxlength="2000" placeholder="Leave a note about this photo" required><button class="icon-command" title="Send comment" aria-label="Send comment"><i class="fas fa-paper-plane"></i></button></form>
+                <form action="{{ url_for('client_gallery.comment_on_photo', code=collection['collection_code'], image_id=image['id'], client_view=1 if client_test_mode else None) }}" method="POST"><input name="comment" maxlength="2000" placeholder="Leave a note about this photo" required><button class="icon-command" title="Send comment" aria-label="Send comment"><i class="fas fa-paper-plane"></i></button></form>
             </details>{% endif %}
         </article>
         {% else %}<div class="gallery-empty"><i class="fas fa-images"></i><h2>No matching photos</h2><p>Try a different search or contact Benjo Moments.</p></div>{% endfor %}
@@ -63,7 +61,7 @@
 <div class="gallery-lightbox" id="gallery-lightbox" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Photo preview">
     <button type="button" class="lightbox-close" aria-label="Close photo preview"><i class="fas fa-times"></i></button>
     <button type="button" class="lightbox-nav lightbox-prev" aria-label="Previous photo"><i class="fas fa-chevron-left"></i></button>
-    <figure><img src="" alt=""><figcaption></figcaption></figure>
+    <figure><img src="" alt="Photo preview"></figure>
     <button type="button" class="lightbox-nav lightbox-next" aria-label="Next photo"><i class="fas fa-chevron-right"></i></button>
 </div>
 <script>
@@ -72,13 +70,10 @@
     var lightbox = document.getElementById('gallery-lightbox');
     if (!buttons.length || !lightbox) return;
     var image = lightbox.querySelector('img');
-    var caption = lightbox.querySelector('figcaption');
     var current = 0;
     function show(index) {
         current = (index + buttons.length) % buttons.length;
         image.src = buttons[current].dataset.full;
-        image.alt = buttons[current].dataset.title;
-        caption.textContent = buttons[current].dataset.title;
         lightbox.classList.add('open');
         lightbox.setAttribute('aria-hidden', 'false');
         document.body.classList.add('lightbox-open');

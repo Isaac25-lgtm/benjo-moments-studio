@@ -17,7 +17,7 @@ from datetime import date as date_type
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import case, func, or_, select
+from sqlalchemy import case, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -1610,6 +1610,15 @@ def get_all_client_collections(search: str = "", status: str = "all") -> list[_R
             .group_by(GalleryDownload.collection_id)
             .subquery()
         )
+        unread_download_count = (
+            select(
+                GalleryDownload.collection_id,
+                func.count(GalleryDownload.id).label("unread_download_count"),
+            )
+            .where(GalleryDownload.is_seen == False)  # noqa: E712
+            .group_by(GalleryDownload.collection_id)
+            .subquery()
+        )
         fallback_cover_image_id = (
             select(ClientCollectionImage.id)
             .where(ClientCollectionImage.collection_id == ClientCollection.id)
@@ -1622,6 +1631,7 @@ def get_all_client_collections(search: str = "", status: str = "all") -> list[_R
                 ClientCollection,
                 func.coalesce(image_count.c.image_count, 0),
                 func.coalesce(download_count.c.download_count, 0),
+                func.coalesce(unread_download_count.c.unread_download_count, 0),
                 func.coalesce(
                     ClientCollection.cover_image_id,
                     fallback_cover_image_id,
@@ -1629,6 +1639,10 @@ def get_all_client_collections(search: str = "", status: str = "all") -> list[_R
             )
             .outerjoin(image_count, image_count.c.collection_id == ClientCollection.id)
             .outerjoin(download_count, download_count.c.collection_id == ClientCollection.id)
+            .outerjoin(
+                unread_download_count,
+                unread_download_count.c.collection_id == ClientCollection.id,
+            )
             .order_by(ClientCollection.created_at.desc())
         )
         search = str(search).strip()
@@ -1657,10 +1671,11 @@ def get_all_client_collections(search: str = "", status: str = "all") -> list[_R
             query = query.where(ClientCollection.expires_at < now)
         rows = session.execute(query).all()
         result = []
-        for collection, images, downloads, cover_id in rows:
+        for collection, images, downloads, unread_downloads, cover_id in rows:
             item = _to_row(collection)
             item["image_count"] = int(images)
             item["download_count"] = int(downloads)
+            item["unread_download_count"] = int(unread_downloads)
             item["cover_image_id"] = cover_id
             if collection.expires_at and collection.expires_at < now:
                 item["access_status"] = "expired"
@@ -1716,6 +1731,8 @@ def add_client_collection(
         raise ValueError("Collection title and client name are required.")
     if len(pin) < 4:
         raise ValueError("Collection PIN must contain at least 4 characters.")
+    if len(pin) > 64:
+        raise ValueError("Collection PIN cannot exceed 64 characters.")
     code = str(collection_code or generate_collection_code(title)).strip().upper()[:80]
     actor = _actor_email()
     with SessionLocal() as session:
@@ -1770,14 +1787,17 @@ def update_client_collection(
 
 
 def reset_client_collection_pin(collection_id: int, pin: str) -> None:
-    if len(str(pin).strip()) < 4:
+    pin = str(pin).strip()
+    if len(pin) < 4:
         raise ValueError("Collection PIN must contain at least 4 characters.")
+    if len(pin) > 64:
+        raise ValueError("Collection PIN cannot exceed 64 characters.")
     actor = _actor_email()
     with SessionLocal() as session:
         row = session.get(ClientCollection, collection_id)
         if not row:
             raise ValueError("Client collection not found.")
-        row.pin_hash = generate_password_hash(str(pin).strip())
+        row.pin_hash = generate_password_hash(pin)
         row.updated_at = datetime.utcnow()
         session.commit()
         log_audit(actor, "reset_pin", "client_collection", collection_id, _audit_details())
@@ -1944,6 +1964,59 @@ def add_gallery_download(collection_id, visitor_id, image_id=None, download_type
             ip_address=_client_ip()[:64],
         ))
         session.commit()
+
+
+def get_unread_gallery_download_count(collection_id: int = None) -> int:
+    with SessionLocal() as session:
+        query = select(func.count(GalleryDownload.id)).where(
+            GalleryDownload.is_seen == False  # noqa: E712
+        )
+        if collection_id is not None:
+            query = query.where(GalleryDownload.collection_id == int(collection_id))
+        return int(session.scalar(query) or 0)
+
+
+def get_gallery_download_notifications(unread_only: bool = False, limit: int = 200) -> list[_Row]:
+    limit = max(1, min(int(limit), 500))
+    with SessionLocal() as session:
+        query = (
+            select(
+                GalleryDownload,
+                ClientCollection.title,
+                ClientCollection.client_name,
+                GalleryVisitor.email,
+                GalleryVisitor.name,
+                ClientCollectionImage.original_name,
+            )
+            .join(ClientCollection, ClientCollection.id == GalleryDownload.collection_id)
+            .outerjoin(GalleryVisitor, GalleryVisitor.id == GalleryDownload.visitor_id)
+            .outerjoin(ClientCollectionImage, ClientCollectionImage.id == GalleryDownload.image_id)
+            .order_by(GalleryDownload.downloaded_at.desc(), GalleryDownload.id.desc())
+            .limit(limit)
+        )
+        if unread_only:
+            query = query.where(GalleryDownload.is_seen == False)  # noqa: E712
+        rows = session.execute(query).all()
+        result = []
+        for download, title, client_name, email, visitor_name, image_name in rows:
+            item = _to_row(download)
+            item["collection_title"] = title
+            item["client_name"] = client_name
+            item["visitor_email"] = email
+            item["visitor_name"] = visitor_name or "Client"
+            item["image_name"] = image_name
+            result.append(item)
+        return result
+
+
+def mark_gallery_downloads_seen(download_id: int = None) -> int:
+    with SessionLocal() as session:
+        statement = update(GalleryDownload).where(GalleryDownload.is_seen == False)  # noqa: E712
+        if download_id is not None:
+            statement = statement.where(GalleryDownload.id == int(download_id))
+        result = session.execute(statement.values(is_seen=True))
+        session.commit()
+        return int(result.rowcount or 0)
 
 
 def add_gallery_comment(image_id: int, visitor_id: int, comment: str) -> None:

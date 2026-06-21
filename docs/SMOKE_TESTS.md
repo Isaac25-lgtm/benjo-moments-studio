@@ -209,6 +209,12 @@ Mark each ✅ pass / ❌ fail with notes.
 | CG18 | Download all with a selected quality | ZIP contains every available photo at the selected quality and activity records that quality |
 | CG19 | Copy Client Share Link and open it in a private browser | The collection PIN page opens directly; the correct PIN leads only to that collection |
 | CG20 | Use a portrait photo as the cover on desktop and mobile | The complete photo stays visible over the full-width background without cropping the face |
+| CG21 | Use Copy or WhatsApp on a manager collection card | The client-specific PIN link is copied or opened for sharing |
+| CG22 | Choose and save a custom PIN | The manager-chosen PIN unlocks the collection and the previous PIN stops working |
+| CG23 | Choose Test PIN as Client while logged in as manager | The PIN screen and full client interaction flow open without logging out |
+| CG24 | View the client photo grid and lightbox | Photo numbers, captions, and filenames stay hidden; downloaded files retain their names |
+| CG25 | Download a photo as a client | A red manager bell badge appears and the alert shows client, collection, quality, and time |
+| CG26 | Mark one or all download alerts as read | The unread count updates for both administrators |
 
 ---
 

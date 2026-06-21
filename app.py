@@ -148,7 +148,17 @@ def create_app():
     @app.context_processor
     def inject_manager_guide():
         from admin_guides import get_page_guide
-        return {"page_guide": get_page_guide(request.endpoint)}
+        download_alert_count = 0
+        if request.path.startswith("/admin") and session.get("user_role") == "admin":
+            try:
+                import database
+                download_alert_count = database.get_unread_gallery_download_count()
+            except Exception as exc:
+                logger.warning("Could not load download notification count: %s", exc)
+        return {
+            "page_guide": get_page_guide(request.endpoint),
+            "download_alert_count": download_alert_count,
+        }
 
     # -----------------------------------------------------------------------
     # CSRF protection middleware

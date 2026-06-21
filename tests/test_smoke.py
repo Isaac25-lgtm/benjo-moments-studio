@@ -59,7 +59,7 @@ class ReleaseSmokeTests(unittest.TestCase):
         for path in (
             "/admin/", "/admin/guide", "/admin/income", "/admin/expenses",
             "/admin/invoices", "/admin/customers", "/admin/assets", "/admin/reports",
-            "/admin/client-collections", "/admin/messages", "/admin/gallery",
+            "/admin/client-collections", "/admin/download-notifications", "/admin/messages", "/admin/gallery",
             "/admin/services", "/admin/pricing", "/admin/pricing/add",
             "/admin/settings", "/admin/users",
         ):
@@ -71,6 +71,10 @@ class ReleaseSmokeTests(unittest.TestCase):
         self.assertIn(b"Deliver client photos", guide.data)
         self.assertIn(b"Weekly or monthly review", guide.data)
         self.assertEqual(self.client.post("/logout").status_code, 400)
+        collections_page = self.client.get("/admin/client-collections")
+        self.assertIn(b'id="new-collection-pin"', collections_page.data)
+        self.assertIn(b'name="pin" minlength="4" maxlength="64"', collections_page.data)
+        self.assertIn(b"required", collections_page.data)
 
     def test_multi_admin_equal_access(self):
         email = f"admin-{self.suffix}@example.com"
@@ -187,6 +191,13 @@ class ReleaseSmokeTests(unittest.TestCase):
                 database.get_client_collection(collection_id)["cover_image_id"],
                 selected_cover["id"],
             )
+            custom_pin = f"N{self.suffix}99"
+            response = self.client.post(
+                f"/admin/client-collections/{collection_id}/reset-pin",
+                data={"csrf_token": self.csrf(), "pin": custom_pin},
+            )
+            self.assertEqual(response.status_code, 302)
+            pin = custom_pin
 
             public_directory = self.client.get(
                 "/client-gallery",
@@ -200,6 +211,8 @@ class ReleaseSmokeTests(unittest.TestCase):
             )
             self.assertEqual(admin_directory.status_code, 200)
             self.assertIn(f"Smoke Collection {self.suffix}".encode(), admin_directory.data)
+            self.assertIn(b"Copy", admin_directory.data)
+            self.assertIn(b"WhatsApp", admin_directory.data)
             detail = self.client.get(f"/admin/client-collections/{collection_id}")
             self.assertEqual(detail.status_code, 200)
             self.assertIn(b"Collection setup guide", detail.data)
@@ -207,11 +220,34 @@ class ReleaseSmokeTests(unittest.TestCase):
             self.assertIn(b"Set Cover", detail.data)
             self.assertIn(b"Client Share Link", detail.data)
             self.assertIn(f"/client-gallery/{code}".encode(), detail.data)
+            self.assertIn(b"Test PIN as Client", detail.data)
             preview = self.client.get(f"/client-gallery/{code}/photos")
             self.assertEqual(preview.status_code, 200)
             self.assertIn(b"Manager Preview", preview.data)
             self.assertIn(b"client-photo-masonry", preview.data)
             self.assertEqual(len(database.get_collection_activity(collection_id)["visitors"]), 0)
+
+            manager_unlock = self.client.get(f"/client-gallery/{code}?client_view=1")
+            self.assertEqual(manager_unlock.status_code, 200)
+            self.assertIn(b"Manager client test", manager_unlock.data)
+            manager_test = self.client.post(
+                f"/client-gallery/{code}?client_view=1",
+                data={
+                    "csrf_token": self.csrf(),
+                    "name": "Manager Test",
+                    "email": f"manager-test-{self.suffix}@example.com",
+                    "pin": pin,
+                },
+            )
+            self.assertEqual(manager_test.status_code, 302)
+            self.assertIn("client_view=1", manager_test.headers["Location"])
+            manager_client_gallery = self.client.get(manager_test.headers["Location"])
+            self.assertIn(b"testing the collection as a client", manager_client_gallery.data)
+            manager_download = self.client.get(
+                f"/client-gallery/{code}/download/{image['id']}?quality=web"
+            )
+            self.assertEqual(manager_download.status_code, 200)
+            manager_download.close()
 
             visitor = self.app.test_client()
             cover = visitor.get(f"/client-gallery/{code}/cover")
@@ -236,7 +272,7 @@ class ReleaseSmokeTests(unittest.TestCase):
             )
             self.assertEqual(rejected.status_code, 200)
             self.assertIn(b"collection PIN was not accepted", rejected.data)
-            self.assertEqual(len(database.get_collection_activity(collection_id)["visitors"]), 0)
+            self.assertEqual(len(database.get_collection_activity(collection_id)["visitors"]), 1)
             response = visitor.post(
                 f"/client-gallery/{code}",
                 data={
@@ -253,6 +289,9 @@ class ReleaseSmokeTests(unittest.TestCase):
             self.assertIn(b"collection-cover-image", client_gallery.data)
             self.assertNotIn(b"Manager Preview", client_gallery.data)
             self.assertIn(b"Web / Social", client_gallery.data)
+            self.assertNotIn(f"smoke-first-{self.suffix}.jpg".encode(), client_gallery.data)
+            self.assertNotIn(f"Smoke photo {self.suffix}".encode(), client_gallery.data)
+            self.assertNotIn(b"Photo 1", client_gallery.data)
             like_url = f"/client-gallery/{code}/photo/{image['id']}/like"
             self.assertEqual(
                 visitor.post(like_url, data={"csrf_token": token}).status_code,
@@ -265,6 +304,10 @@ class ReleaseSmokeTests(unittest.TestCase):
             self.assertEqual(len(database.get_collection_activity(collection_id)["likes"]), 1)
             download = visitor.get(f"/client-gallery/{code}/download/{image['id']}")
             self.assertEqual(download.status_code, 200)
+            self.assertIn(
+                f"smoke-first-{self.suffix}.jpg",
+                download.headers["Content-Disposition"],
+            )
             download.close()
             web_download = visitor.get(
                 f"/client-gallery/{code}/download/{image['id']}?quality=web"
@@ -298,8 +341,8 @@ class ReleaseSmokeTests(unittest.TestCase):
             )
             self.assertEqual(response.status_code, 302)
             activity = database.get_collection_activity(collection_id)
-            self.assertEqual(len(activity["visitors"]), 1)
-            self.assertGreaterEqual(len(activity["downloads"]), 3)
+            self.assertEqual(len(activity["visitors"]), 2)
+            self.assertGreaterEqual(len(activity["downloads"]), 4)
             self.assertEqual(len(activity["likes"]), 1)
             self.assertEqual(len(activity["comments"]), 1)
             manager_activity = self.client.get(
@@ -307,6 +350,27 @@ class ReleaseSmokeTests(unittest.TestCase):
             )
             self.assertIn(b"Client Likes", manager_activity.data)
             self.assertIn(b"Image Web", manager_activity.data)
+            notifications = database.get_gallery_download_notifications()
+            collection_notifications = [
+                item for item in notifications if item["collection_id"] == collection_id
+            ]
+            self.assertGreaterEqual(len(collection_notifications), 4)
+            self.assertTrue(any(not item["is_seen"] for item in collection_notifications))
+            notification_page = self.client.get("/admin/download-notifications?status=unread")
+            self.assertEqual(notification_page.status_code, 200)
+            self.assertIn(f"Smoke Collection {self.suffix}".encode(), notification_page.data)
+            self.assertIn(b"New", notification_page.data)
+            count_response = self.client.get("/admin/download-notifications/count")
+            self.assertEqual(count_response.status_code, 200)
+            self.assertGreaterEqual(count_response.get_json()["count"], 4)
+            notification_id = collection_notifications[0]["id"]
+            marked = self.client.post(
+                "/admin/download-notifications/mark-seen",
+                data={"csrf_token": self.csrf(), "download_id": notification_id},
+            )
+            self.assertEqual(marked.status_code, 302)
+            refreshed = database.get_gallery_download_notifications()
+            self.assertTrue(next(item for item in refreshed if item["id"] == notification_id)["is_seen"])
         finally:
             database.delete_client_collection(collection_id)
             shutil.rmtree(directory, ignore_errors=True)

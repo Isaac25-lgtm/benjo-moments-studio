@@ -6,7 +6,7 @@ import secrets
 import shutil
 import uuid
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.utils import secure_filename
 
 import config
@@ -205,6 +205,39 @@ def client_collections():
     )
 
 
+@admin_extended.route("/download-notifications")
+def download_notifications():
+    unread_only = request.args.get("status", "all") == "unread"
+    return render_template(
+        "admin/download_notifications.html",
+        notifications=database.get_gallery_download_notifications(unread_only=unread_only),
+        unread_only=unread_only,
+        unread_count=database.get_unread_gallery_download_count(),
+    )
+
+
+@admin_extended.route("/download-notifications/count")
+def download_notification_count():
+    return jsonify({"count": database.get_unread_gallery_download_count()})
+
+
+@admin_extended.route("/download-notifications/mark-seen", methods=["POST"])
+def mark_download_notifications_seen():
+    raw_download_id = request.form.get("download_id", "").strip()
+    if raw_download_id and not raw_download_id.isdigit():
+        flash("That download notification is not valid.", "error")
+        return redirect(url_for("admin_extended.download_notifications"))
+    download_id = int(raw_download_id) if raw_download_id else None
+    changed = database.mark_gallery_downloads_seen(download_id)
+    if changed:
+        flash(
+            "Download notification marked as read."
+            if download_id else "All download notifications marked as read.",
+            "success",
+        )
+    return redirect(url_for("admin_extended.download_notifications"))
+
+
 @admin_extended.route("/client-collections/<int:collection_id>")
 def client_collection_detail(collection_id):
     collection = database.get_client_collection(collection_id)
@@ -245,10 +278,13 @@ def update_client_collection(collection_id):
 
 @admin_extended.route("/client-collections/<int:collection_id>/reset-pin", methods=["POST"])
 def reset_collection_pin(collection_id):
-    pin = request.form.get("pin", "").strip() or _new_pin()
+    pin = request.form.get("pin", "").strip()
+    if not pin:
+        flash("Enter the new PIN you want the client to use.", "error")
+        return redirect(url_for("admin_extended.client_collection_detail", collection_id=collection_id))
     try:
         database.reset_client_collection_pin(collection_id, pin)
-        flash(f"PIN reset to {pin}. Copy it now; it cannot be displayed again.", "success")
+        flash(f"Client PIN changed to {pin}. Copy it now; it cannot be displayed again.", "success")
     except ValueError as exc:
         flash(str(exc), "error")
     return redirect(url_for("admin_extended.client_collection_detail", collection_id=collection_id))

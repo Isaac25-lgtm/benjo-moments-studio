@@ -46,6 +46,10 @@ def _is_admin_session() -> bool:
     )
 
 
+def _is_manager_client_test() -> bool:
+    return request.args.get("client_view") == "1" and _is_admin_session()
+
+
 def _requested_quality() -> str:
     quality = request.args.get("quality", "original").strip().lower()
     if quality not in DOWNLOAD_QUALITIES:
@@ -133,10 +137,13 @@ def collection_cover(code):
 def collection_unlock(code):
     settings = database.get_website_settings()
     is_admin = _is_admin_session()
-    collection = database.get_client_collection_by_code(code, active_only=not is_admin)
+    client_test_mode = is_admin and request.args.get("client_view") == "1"
+    collection = database.get_client_collection_by_code(
+        code, active_only=(not is_admin or client_test_mode)
+    )
     if not collection:
         abort(404)
-    if is_admin:
+    if is_admin and not client_test_mode:
         return redirect(url_for("client_gallery.collection_view", code=collection["collection_code"]))
     if collection.get("expires_at") and collection["expires_at"] < datetime.utcnow():
         return render_template(
@@ -146,7 +153,11 @@ def collection_unlock(code):
             expired=True,
         ), 410
     if session.get(_access_key(collection["id"])):
-        return redirect(url_for("client_gallery.collection_view", code=collection["collection_code"]))
+        return redirect(url_for(
+            "client_gallery.collection_view",
+            code=collection["collection_code"],
+            client_view=1 if client_test_mode else None,
+        ))
     if request.method == "POST":
         try:
             unlocked = database.unlock_client_collection(
@@ -161,19 +172,25 @@ def collection_unlock(code):
         if unlocked:
             session[_access_key(collection["id"])] = unlocked["visitor_id"]
             session.permanent = True
-            return redirect(url_for("client_gallery.collection_view", code=collection["collection_code"]))
+            return redirect(url_for(
+                "client_gallery.collection_view",
+                code=collection["collection_code"],
+                client_view=1 if client_test_mode else None,
+            ))
         flash("That collection PIN was not accepted. Check the PIN supplied by Benjo Moments and try again.", "error")
     return render_template(
         "public/client_gallery_unlock.html",
         settings=settings,
         collection=collection,
         expired=False,
+        manager_client_test=client_test_mode,
     )
 
 
 @client_gallery.route("/client-gallery/<code>/photos")
 def collection_view(code):
-    preview_mode = _is_admin_session()
+    client_test_mode = _is_manager_client_test()
+    preview_mode = _is_admin_session() and not client_test_mode
     if preview_mode:
         collection = database.get_client_collection_by_code(code)
         if not collection:
@@ -181,7 +198,11 @@ def collection_view(code):
     else:
         collection, visitor_id = _authorized_collection(code)
         if not visitor_id:
-            return redirect(url_for("client_gallery.collection_unlock", code=collection["collection_code"]))
+            return redirect(url_for(
+                "client_gallery.collection_unlock",
+                code=collection["collection_code"],
+                client_view=1 if client_test_mode else None,
+            ))
     search = request.args.get("q", "").strip()[:100]
     images = database.get_collection_images_for_visitor(collection["id"], search)
     comments = database.get_gallery_comments(collection["id"])
@@ -200,6 +221,7 @@ def collection_view(code):
         search=search,
         comments_by_image=comments_by_image,
         preview_mode=preview_mode,
+        client_test_mode=client_test_mode,
         like_counts=like_summary["counts"],
         liked_image_ids=like_summary["liked_image_ids"],
         download_qualities=DOWNLOAD_QUALITIES,
@@ -326,10 +348,11 @@ def like_photo(code, image_id):
         flash("Photo liked." if liked else "Photo removed from your likes.", "success")
     except ValueError as exc:
         flash(str(exc), "error")
-    return redirect(
-        url_for("client_gallery.collection_view", code=collection["collection_code"])
-        + f"#photo-{image_id}"
-    )
+    return redirect(url_for(
+        "client_gallery.collection_view",
+        code=collection["collection_code"],
+        client_view=1 if _is_manager_client_test() else None,
+    ) + f"#photo-{image_id}")
 
 
 @client_gallery.route("/client-gallery/<code>/photo/<int:image_id>/comment", methods=["POST"])
@@ -343,7 +366,11 @@ def comment_on_photo(code, image_id):
         flash("Your comment was added.", "success")
     except ValueError as exc:
         flash(str(exc), "error")
-    return redirect(url_for("client_gallery.collection_view", code=collection["collection_code"]) + f"#photo-{image_id}")
+    return redirect(url_for(
+        "client_gallery.collection_view",
+        code=collection["collection_code"],
+        client_view=1 if _is_manager_client_test() else None,
+    ) + f"#photo-{image_id}")
 
 
 @client_gallery.route("/client-gallery/<code>/lock", methods=["POST"])
@@ -351,4 +378,8 @@ def lock_collection(code):
     collection = database.get_client_collection_by_code(code)
     if collection:
         session.pop(_access_key(collection["id"]), None)
-    return redirect(url_for("client_gallery.collection_unlock", code=code))
+    return redirect(url_for(
+        "client_gallery.collection_unlock",
+        code=code,
+        client_view=1 if request.form.get("client_view") == "1" and _is_admin_session() else None,
+    ))

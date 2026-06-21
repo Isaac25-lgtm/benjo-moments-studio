@@ -120,6 +120,11 @@
             gap: 15px;
         }
 
+        .notification-trigger { position: relative; width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid #cbd5e1; border-radius: 50%; background: white; color: #1a1a2e; text-decoration: none; }
+        .notification-trigger:hover { border-color: #4299e1; background: #f7fafc; }
+        .notification-badge { position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px; display: grid; place-items: center; border: 2px solid white; border-radius: 10px; background: #e53e3e; color: white !important; font-size: 10px; font-weight: 800; line-height: 1; }
+        .sidebar-alert-badge { min-width: 22px; margin-left: auto; padding: 2px 7px; border-radius: 10px; background: #e53e3e; color: white; font-size: 10px; font-weight: 800; text-align: center; }
+
         .header-user span {
             color: #666;
         }
@@ -498,6 +503,9 @@
             <li><a href="{{ url_for('admin_extended.client_collections') }}"
                     class="{% if request.endpoint and request.endpoint.startswith('admin_extended.client_collection') %}active{% endif %}"><i
                         class="fas fa-lock"></i> Client Delivery</a></li>
+            <li><a href="{{ url_for('admin_extended.download_notifications') }}"
+                    class="{% if request.endpoint and 'download_notification' in request.endpoint %}active{% endif %}"><i
+                        class="fas fa-bell"></i> Download Alerts<span class="sidebar-alert-badge" data-download-alert-count style="{% if not download_alert_count %}display:none;{% endif %}">{{ download_alert_count if download_alert_count < 100 else '99+' }}</span></a></li>
             <li><a href="{{ url_for('admin.messages') }}"
                     class="{% if request.endpoint == 'admin.messages' %}active{% endif %}"><i
                         class="fas fa-envelope"></i> Messages</a></li>
@@ -535,6 +543,7 @@
         <header class="header">
             <h1>{% block page_title %}Dashboard{% endblock %}</h1>
             <div class="header-user">
+                <a class="notification-trigger" href="{{ url_for('admin_extended.download_notifications') }}" title="Client download notifications" aria-label="Client download notifications"><i class="fas fa-bell"></i><span class="notification-badge" data-download-alert-count style="{% if not download_alert_count %}display:none;{% endif %}">{{ download_alert_count if download_alert_count < 100 else '99+' }}</span></a>
                 {% if page_guide %}<button type="button" class="guide-trigger" onclick="openPageGuide()" aria-controls="page-guide" aria-expanded="false"><i class="fas fa-circle-question"></i><span>Page guide</span></button>{% endif %}
                 <span>{{ session.get('user_name', 'Admin') }}</span>
                 <form action="{{ url_for('auth.logout') }}" method="POST" class="btn-logout-form">
@@ -584,6 +593,23 @@
             form.prepend(input);
         }
     });
+})();
+
+(function pollDownloadAlerts(){
+    var endpoint = "{{ url_for('admin_extended.download_notification_count') }}";
+    function refresh() {
+        fetch(endpoint, {credentials: 'same-origin'})
+            .then(function(response) { return response.ok ? response.json() : null; })
+            .then(function(data) {
+                if (!data) return;
+                document.querySelectorAll('[data-download-alert-count]').forEach(function(badge) {
+                    badge.textContent = data.count > 99 ? '99+' : data.count;
+                    badge.style.display = data.count ? 'grid' : 'none';
+                });
+            })
+            .catch(function() {});
+    }
+    window.setInterval(refresh, 30000);
 })();
 
 // ---- Edit Modal System ----

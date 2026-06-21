@@ -18,9 +18,10 @@
         <p class="eyebrow">Enter Gallery</p>
         <h2>Your photos are ready</h2>
         <p>Enter your details and the private PIN supplied by Benjo Moments.</p>
+        {% if manager_client_test %}<div class="manager-client-test-note"><i class="fas fa-user-check"></i><div><strong>Manager client test</strong><span>Enter the PIN you created to verify the exact client experience.</span></div></div>{% endif %}
         {% if expired %}<div class="access-notice">This collection has expired. Contact Benjo Moments for renewed access.</div>
         {% else %}
-        <form method="POST" class="unlock-form">
+        <form method="POST" action="{{ url_for('client_gallery.collection_unlock', code=collection['collection_code'], client_view=1) if manager_client_test else url_for('client_gallery.collection_unlock', code=collection['collection_code']) }}" class="unlock-form">
             <div><label for="name">Your name</label><input id="name" name="name" maxlength="255" required></div>
             <div><label for="email">Email address</label><input id="email" type="email" name="email" maxlength="255" required></div>
             <div><label for="pin">Collection PIN</label><div class="pin-field"><input id="pin" type="password" name="pin" minlength="4" autocomplete="one-time-code" inputmode="text" required><button type="button" onclick="toggleCollectionPin()" title="Show or hide PIN" aria-label="Show or hide collection PIN"><i class="far fa-eye"></i></button></div></div>

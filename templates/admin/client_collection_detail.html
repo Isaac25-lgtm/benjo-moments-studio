@@ -4,10 +4,10 @@
 {% block content %}
 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
     <a class="btn" style="background:#718096;color:white;" href="{{ url_for('admin_extended.client_collections') }}"><i class="fas fa-arrow-left"></i> Collections</a>
-    <a class="btn btn-primary" target="_blank" href="{{ url_for('client_gallery.collection_view', code=collection['collection_code']) }}"><i class="fas fa-eye"></i> Preview Gallery</a>
+    <div style="display:flex;gap:9px;flex-wrap:wrap;"><a class="btn" style="border:1px solid #93c5fd;background:#eff6ff;color:#1e3a8a;" target="_blank" href="{{ url_for('client_gallery.collection_unlock', code=collection['collection_code'], client_view=1) }}"><i class="fas fa-user"></i> Test PIN as Client</a><a class="btn btn-primary" target="_blank" href="{{ url_for('client_gallery.collection_view', code=collection['collection_code']) }}"><i class="fas fa-eye"></i> Preview Gallery</a></div>
 </div>
 
-<div class="content-card" id="client-share-panel">
+<div class="content-card" id="client-share-panel" style="border:1px solid #93c5fd;background:#f8fbff;box-shadow:0 8px 24px rgba(59,130,246,.08);">
     <h2><i class="fas fa-share-nodes"></i> Client Share Link</h2>
     <p class="text-muted" style="margin-bottom:16px;"><strong>Step 1:</strong> Copy this private link and send it to the client. <strong>Step 2:</strong> Send the collection PIN separately. <strong>Step 3:</strong> The client opens the link, enters their name, email, and PIN, then can view and download the collection.</p>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
@@ -15,7 +15,7 @@
         <button class="btn btn-primary" id="copy-client-link" type="button" onclick="copyClientLink()"><i class="fas fa-copy"></i> Copy Link</button>
         <button class="btn btn-success" type="button" onclick="shareClientLink()"><i class="fab fa-whatsapp"></i> WhatsApp</button>
     </div>
-    <p class="text-muted" style="margin:12px 0 0;font-size:13px;">Collection code: <strong>{{ collection['collection_code'] }}</strong>. Open the link in a private browser window when you want to test the client's PIN screen.</p>
+    <p class="text-muted" style="margin:12px 0 0;font-size:13px;">Collection code: <strong>{{ collection['collection_code'] }}</strong>. Use <strong>Test PIN as Client</strong> above to check the exact PIN experience without logging out.</p>
 </div>
 
 <div class="content-card">
@@ -36,9 +36,9 @@
         <label style="display:flex;gap:8px;align-items:center;margin-bottom:16px;"><input type="checkbox" name="is_active" {% if collection['is_active'] %}checked{% endif %}> Collection active</label>
         <button class="btn btn-primary"><i class="fas fa-save"></i> Save</button>
     </form>
-    <form action="{{ url_for('admin_extended.reset_collection_pin', collection_id=collection['id']) }}" method="POST" style="margin-top:18px;display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
-        <div class="form-group" style="margin:0;min-width:240px;"><label>New PIN</label><input name="pin" minlength="4" placeholder="Leave blank to generate"></div>
-        <button class="btn btn-warning"><i class="fas fa-key"></i> Reset PIN</button>
+    <form action="{{ url_for('admin_extended.reset_collection_pin', collection_id=collection['id']) }}" method="POST" style="margin-top:22px;padding-top:20px;border-top:1px solid #e2e8f0;display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+        <div class="form-group" style="margin:0;min-width:240px;flex:1 1 360px;"><label for="reset-client-pin">Choose a new client PIN</label><div class="reset-pin-control"><input id="reset-client-pin" type="password" name="pin" minlength="4" maxlength="64" autocomplete="new-password" placeholder="Enter your own PIN" required><button type="button" onclick="toggleManagerPin('reset-client-pin', this)" title="Show or hide PIN" aria-label="Show or hide PIN"><i class="far fa-eye"></i></button><button type="button" onclick="generateManagerPin('reset-client-pin')"><i class="fas fa-wand-magic-sparkles"></i> Generate</button></div><small class="text-muted">The old PIN will stop working immediately.</small></div>
+        <button class="btn btn-warning"><i class="fas fa-key"></i> Save New PIN</button>
     </form>
 </div>
 
@@ -93,6 +93,9 @@
         <button class="btn btn-danger"><i class="fas fa-trash"></i> Delete Collection</button>
     </form>
 </div>
+<style>
+.reset-pin-control{display:grid;grid-template-columns:minmax(0,1fr) 44px auto}.reset-pin-control input{min-width:0;border-radius:8px 0 0 8px}.reset-pin-control button{border:1px solid #cbd5e1;border-left:0;background:#fff;color:#1a1a2e;cursor:pointer}.reset-pin-control button:last-child{padding:0 12px;border-radius:0 8px 8px 0;background:#eef2ff;color:#1e3a8a;font-weight:700}@media(max-width:560px){.reset-pin-control{grid-template-columns:minmax(0,1fr) 44px}.reset-pin-control button:last-child{grid-column:1/-1;height:40px;border:1px solid #cbd5e1;border-top:0;border-radius:0 0 8px 8px}}
+</style>
 <script>
 function copyClientLink() {
     var input = document.getElementById('client-share-url');
@@ -120,6 +123,23 @@ function shareClientLink() {
     var link = document.getElementById('client-share-url').value;
     var message = 'Your Benjo Moments photo collection is ready: ' + link + ' Use the PIN sent to you separately.';
     window.open('https://wa.me/?text=' + encodeURIComponent(message), '_blank', 'noopener');
+}
+
+function toggleManagerPin(inputId, button) {
+    var input = document.getElementById(inputId);
+    var showing = input.type === 'text';
+    input.type = showing ? 'password' : 'text';
+    button.querySelector('i').className = showing ? 'far fa-eye' : 'far fa-eye-slash';
+}
+
+function generateManagerPin(inputId) {
+    var input = document.getElementById(inputId);
+    var values = new Uint32Array(1);
+    window.crypto.getRandomValues(values);
+    input.value = String(100000 + (values[0] % 900000));
+    input.type = 'text';
+    input.focus();
+    input.select();
 }
 </script>
 {% endblock %}

@@ -98,10 +98,22 @@ PAGE_GUIDES = {
             "Choose Set Cover on the photo that should represent the collection and appear behind the PIN form.",
             "Open Preview Gallery to check the layout and confirm that the full cover photo is framed correctly.",
             "Use Copy Link in Client Share Link and send it to the client, then send the PIN separately.",
+            "Use Test PIN as Client to verify the PIN screen and gallery without logging out.",
             "Review visitors, likes, download qualities, and comments in Client Activity.",
             "Deactivate access or reset the PIN when necessary.",
         ),
         "note": "Deleting a collection permanently removes its photos and activity.",
+    },
+    "admin_extended.download_notifications": {
+        "title": "Download alerts guide",
+        "summary": "See who downloaded client photos and which quality they selected.",
+        "steps": (
+            "Check the red bell badge for the number of new client downloads.",
+            "Open an alert to identify the client, collection, quality, and download time.",
+            "Choose Collection when you need to inspect that client's full activity.",
+            "Mark one alert as read, or use Mark All Read after reviewing the list.",
+        ),
+        "note": "Both administrators share the same alerts and read status.",
     },
     "admin.messages": {
         "title": "Messages guide",

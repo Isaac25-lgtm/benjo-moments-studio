@@ -1,0 +1,37 @@
+{% extends 'admin/base.html' %}
+{% block title %}Download Alerts{% endblock %}
+{% block page_title %}Client Download Alerts{% endblock %}
+{% block content %}
+<section class="download-alert-intro">
+    <div><p class="guide-eyebrow">Client activity</p><h2>Know when clients collect their photos</h2><p>Every individual photo and full-collection download appears here with the client, collection, quality, and time.</p></div>
+    {% if unread_count %}<form action="{{ url_for('admin_extended.mark_download_notifications_seen') }}" method="POST"><button class="btn btn-primary"><i class="fas fa-check-double"></i> Mark All Read</button></form>{% endif %}
+</section>
+
+<nav class="download-alert-tabs" aria-label="Download notification filters">
+    <a href="{{ url_for('admin_extended.download_notifications') }}" class="{% if not unread_only %}active{% endif %}">All activity</a>
+    <a href="{{ url_for('admin_extended.download_notifications', status='unread') }}" class="{% if unread_only %}active{% endif %}">Unread{% if unread_count %} ({{ unread_count }}){% endif %}</a>
+</nav>
+
+<div class="download-alert-list">
+    {% for item in notifications %}
+    <article class="download-alert-row {% if not item['is_seen'] %}unread{% endif %}">
+        <div class="download-alert-icon"><i class="fas {{ 'fa-file-zipper' if item['download_type'][:4] == 'all_' else 'fa-image' }}"></i></div>
+        <div class="download-alert-copy">
+            <div class="download-alert-heading"><h3>{{ item['visitor_name'] }} downloaded {{ 'the full collection' if item['download_type'][:4] == 'all_' else 'a photo' }}</h3>{% if not item['is_seen'] %}<span>New</span>{% endif %}</div>
+            <p><strong>{{ item['collection_title'] }}</strong> for {{ item['client_name'] }}</p>
+            <div><span><i class="far fa-envelope"></i> {{ item['visitor_email'] or 'Email unavailable' }}</span><span><i class="fas fa-gauge-high"></i> {{ item['download_type'].replace('_', ' ')|title }}</span><span><i class="far fa-clock"></i> {{ item['downloaded_at'].strftime('%d %b %Y, %H:%M') }}</span></div>
+        </div>
+        <div class="download-alert-actions">
+            <a class="btn btn-sm" href="{{ url_for('admin_extended.client_collection_detail', collection_id=item['collection_id']) }}"><i class="fas fa-folder-open"></i> Collection</a>
+            {% if not item['is_seen'] %}<form action="{{ url_for('admin_extended.mark_download_notifications_seen') }}" method="POST"><input type="hidden" name="download_id" value="{{ item['id'] }}"><button class="btn btn-sm btn-success" title="Mark this notification as read"><i class="fas fa-check"></i></button></form>{% endif %}
+        </div>
+    </article>
+    {% else %}
+    <div class="download-alert-empty"><i class="fas fa-bell-slash"></i><h2>{{ 'No unread downloads' if unread_only else 'No client downloads yet' }}</h2><p>New downloads will appear here automatically.</p></div>
+    {% endfor %}
+</div>
+
+<style>
+.download-alert-intro{display:flex;justify-content:space-between;align-items:center;gap:28px;padding:26px;margin-bottom:18px;border:1px solid #dbeafe;border-radius:8px;background:#fff}.download-alert-intro h2{margin-bottom:7px;color:#111827}.download-alert-intro p:not(.guide-eyebrow){color:#475569}.download-alert-tabs{display:flex;gap:24px;margin-bottom:16px;border-bottom:1px solid #dbe2ea}.download-alert-tabs a{padding:10px 2px;color:#64748b;text-decoration:none;font-weight:700}.download-alert-tabs a.active{border-bottom:3px solid #e94560;color:#1a1a2e}.download-alert-list{display:grid;gap:10px}.download-alert-row{display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:16px;align-items:center;padding:18px;border:1px solid #e2e8f0;border-radius:8px;background:#fff}.download-alert-row.unread{border-color:#93c5fd;background:#eff6ff}.download-alert-icon{width:44px;height:44px;display:grid;place-items:center;border-radius:50%;background:#1a1a2e;color:#fff}.download-alert-heading{display:flex;align-items:center;gap:10px}.download-alert-heading h3{font-size:16px;color:#111827}.download-alert-heading span{padding:3px 8px;border-radius:10px;background:#e94560;color:#fff;font-size:10px;font-weight:800}.download-alert-copy>p{margin:4px 0;color:#475569}.download-alert-copy>div:last-child{display:flex;flex-wrap:wrap;gap:14px;color:#64748b;font-size:12px}.download-alert-actions{display:flex;gap:7px;align-items:center}.download-alert-actions .btn:not(.btn-success){border:1px solid #cbd5e1;background:#fff;color:#1a1a2e}.download-alert-empty{padding:60px 20px;text-align:center;border:1px dashed #cbd5e1;border-radius:8px;background:#fff;color:#64748b}.download-alert-empty i{margin-bottom:14px;font-size:42px;color:#94a3b8}@media(max-width:720px){.download-alert-intro{align-items:flex-start;flex-direction:column}.download-alert-row{grid-template-columns:42px minmax(0,1fr)}.download-alert-actions{grid-column:2}.download-alert-copy>div:last-child{flex-direction:column;gap:5px}}
+</style>
+{% endblock %}
