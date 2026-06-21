@@ -95,6 +95,7 @@ PAGE_GUIDES = {
         "steps": (
             "Confirm the client details, dates, location, and Active setting, then save.",
             "Upload up to 25 JPG, PNG, or WebP photos per batch; repeat uploads as needed.",
+            "To remove several photos, tick their selection boxes and choose Delete Selected.",
             "Choose Set Cover on the photo that should represent the collection and appear behind the PIN form.",
             "Open Preview Gallery to check the layout and confirm that the full cover photo is framed correctly.",
             "Use Copy Link in Client Share Link and send it to the client, then send the PIN separately.",

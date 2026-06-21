@@ -54,11 +54,13 @@
 </div>
 
 <div class="content-card">
-    <h2><i class="fas fa-images"></i> Photos ({{ collection['images']|length }})</h2>
+    <div class="photo-manager-heading"><h2><i class="fas fa-images"></i> Photos ({{ collection['images']|length }})</h2>{% if collection['images'] %}<div class="bulk-photo-actions"><button type="button" class="btn btn-sm" onclick="setAllPhotosSelected(true)"><i class="fas fa-check-square"></i> Select All</button><button type="button" class="btn btn-sm" onclick="setAllPhotosSelected(false)"><i class="far fa-square"></i> Clear</button><form id="bulk-delete-photos" action="{{ url_for('admin_extended.delete_selected_collection_images', collection_id=collection['id']) }}" method="POST" onsubmit="return confirmBulkPhotoDelete()"><button id="bulk-delete-button" class="btn btn-danger btn-sm" disabled><i class="fas fa-trash"></i> Delete Selected (<span id="bulk-photo-count">0</span>)</button></form></div>{% endif %}</div>
+    {% if collection['images'] %}<p class="text-muted" style="margin-top:10px;">Select any photos you want to remove, then choose Delete Selected. This cannot be undone.</p>{% endif %}
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;margin-top:18px;">
         {% for image in collection['images'] %}
         <div style="border:2px solid {{ '#38a169' if collection['cover_image_id'] == image['id'] else '#e2e8f0' }};border-radius:8px;overflow:hidden;background:#f8fafc;position:relative;">
             {% if collection['cover_image_id'] == image['id'] %}<span class="badge badge-success" style="position:absolute;top:8px;left:8px;z-index:2;"><i class="fas fa-image"></i> Cover</span>{% endif %}
+            <label class="bulk-photo-select" title="Select {{ image['original_name'] }}"><input class="bulk-photo-checkbox" type="checkbox" name="image_ids" value="{{ image['id'] }}" form="bulk-delete-photos" onchange="updateBulkPhotoSelection()"><span><i class="fas fa-check"></i></span></label>
             <img src="{{ url_for('client_gallery.collection_photo', code=collection['collection_code'], image_id=image['id']) }}" alt="{{ image['caption'] or image['original_name'] }}" style="width:100%;height:150px;object-fit:{{ 'contain' if collection['cover_image_id'] == image['id'] else 'cover' }};background:#171923;display:block;">
             <div style="padding:10px;"><small style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ image['original_name'] }}</small><div style="display:flex;gap:7px;margin-top:8px;">{% if collection['cover_image_id'] != image['id'] %}<form action="{{ url_for('admin_extended.set_collection_cover', collection_id=collection['id'], image_id=image['id']) }}" method="POST"><button class="btn btn-success btn-sm" title="Use as collection cover"><i class="fas fa-image"></i> Set Cover</button></form>{% endif %}<form action="{{ url_for('admin_extended.delete_collection_image', collection_id=collection['id'], image_id=image['id']) }}" method="POST" onsubmit="return confirm('Delete this client photo?')"><button class="btn btn-danger btn-sm" title="Delete"><i class="fas fa-trash"></i></button></form></div></div>
         </div>
@@ -95,6 +97,7 @@
 </div>
 <style>
 .reset-pin-control{display:grid;grid-template-columns:minmax(0,1fr) 44px auto}.reset-pin-control input{min-width:0;border-radius:8px 0 0 8px}.reset-pin-control button{border:1px solid #cbd5e1;border-left:0;background:#fff;color:#1a1a2e;cursor:pointer}.reset-pin-control button:last-child{padding:0 12px;border-radius:0 8px 8px 0;background:#eef2ff;color:#1e3a8a;font-weight:700}@media(max-width:560px){.reset-pin-control{grid-template-columns:minmax(0,1fr) 44px}.reset-pin-control button:last-child{grid-column:1/-1;height:40px;border:1px solid #cbd5e1;border-top:0;border-radius:0 0 8px 8px}}
+.photo-manager-heading{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}.bulk-photo-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.bulk-photo-actions>.btn{border:1px solid #cbd5e1;background:#fff;color:#1a1a2e}.bulk-photo-select{position:absolute;right:8px;top:8px;z-index:3;cursor:pointer}.bulk-photo-select input{position:absolute;opacity:0;pointer-events:none}.bulk-photo-select span{width:34px;height:34px;display:grid;place-items:center;border:2px solid #fff;border-radius:6px;background:rgba(15,23,42,.78);color:transparent;box-shadow:0 2px 8px rgba(0,0,0,.2)}.bulk-photo-select input:checked+span{background:#e53e3e;color:#fff}.bulk-photo-select input:focus-visible+span{outline:3px solid #93c5fd;outline-offset:2px}@media(max-width:560px){.photo-manager-heading{align-items:flex-start;flex-direction:column}.bulk-photo-actions{width:100%}.bulk-photo-actions form{flex:1}.bulk-photo-actions form button{width:100%}}
 </style>
 <script>
 function copyClientLink() {
@@ -140,6 +143,24 @@ function generateManagerPin(inputId) {
     input.type = 'text';
     input.focus();
     input.select();
+}
+
+function updateBulkPhotoSelection() {
+    var checked = document.querySelectorAll('.bulk-photo-checkbox:checked').length;
+    var count = document.getElementById('bulk-photo-count');
+    var button = document.getElementById('bulk-delete-button');
+    if (count) count.textContent = checked;
+    if (button) button.disabled = checked === 0;
+}
+
+function setAllPhotosSelected(selected) {
+    document.querySelectorAll('.bulk-photo-checkbox').forEach(function(checkbox) { checkbox.checked = selected; });
+    updateBulkPhotoSelection();
+}
+
+function confirmBulkPhotoDelete() {
+    var count = document.querySelectorAll('.bulk-photo-checkbox:checked').length;
+    return count > 0 && window.confirm('Permanently delete ' + count + ' selected photo' + (count === 1 ? '' : 's') + '? This cannot be undone.');
 }
 </script>
 {% endblock %}

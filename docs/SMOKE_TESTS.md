@@ -215,6 +215,7 @@ Mark each ✅ pass / ❌ fail with notes.
 | CG24 | View the client photo grid and lightbox | Photo numbers, captions, and filenames stay hidden; downloaded files retain their names |
 | CG25 | Download a photo as a client | A red manager bell badge appears and the alert shows client, collection, quality, and time |
 | CG26 | Mark one or all download alerts as read | The unread count updates for both administrators |
+| CG27 | Select several photos and choose Delete Selected | Only selected photos and stored files are removed; a deleted cover is replaced when another photo remains |
 
 ---
 

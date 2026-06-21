@@ -356,6 +356,41 @@ def delete_collection_image(collection_id, image_id):
     return redirect(url_for("admin_extended.client_collection_detail", collection_id=collection_id))
 
 
+@admin_extended.route("/client-collections/<int:collection_id>/images/delete-selected", methods=["POST"])
+def delete_selected_collection_images(collection_id):
+    if not database.get_client_collection(collection_id):
+        abort(404)
+    raw_ids = request.form.getlist("image_ids")
+    image_ids = [int(value) for value in raw_ids if value.isdigit()][:500]
+    if not image_ids:
+        flash("Select at least one photo to delete.", "warning")
+        return redirect(url_for("admin_extended.client_collection_detail", collection_id=collection_id))
+    try:
+        images = database.delete_client_collection_images(collection_id, image_ids)
+    except ValueError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("admin_extended.client_collection_detail", collection_id=collection_id))
+    if not images:
+        flash("None of the selected photos belonged to this collection.", "warning")
+        return redirect(url_for("admin_extended.client_collection_detail", collection_id=collection_id))
+
+    directory = os.path.abspath(
+        os.path.join(config.UPLOAD_FOLDER, "client_collections", str(collection_id))
+    )
+    file_failures = 0
+    for image in images:
+        path = os.path.abspath(os.path.join(directory, image["filename"]))
+        try:
+            if os.path.commonpath([directory, path]) == directory and os.path.isfile(path):
+                os.remove(path)
+        except (OSError, ValueError):
+            file_failures += 1
+    flash(f"{len(images)} selected photo{'s' if len(images) != 1 else ''} deleted.", "success")
+    if file_failures:
+        flash(f"{file_failures} stored file{'s' if file_failures != 1 else ''} could not be removed.", "warning")
+    return redirect(url_for("admin_extended.client_collection_detail", collection_id=collection_id))
+
+
 @admin_extended.route("/client-collections/<int:collection_id>/delete", methods=["POST"])
 def delete_collection(collection_id):
     collection = database.delete_client_collection(collection_id)

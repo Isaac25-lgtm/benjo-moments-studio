@@ -1898,6 +1898,67 @@ def delete_client_collection_image(image_id: int) -> Optional[_Row]:
         return result
 
 
+def delete_client_collection_images(collection_id: int, image_ids) -> list[_Row]:
+    """Delete selected collection images atomically and return their file details."""
+    normalized_ids = []
+    for image_id in image_ids:
+        try:
+            value = int(image_id)
+        except (TypeError, ValueError):
+            continue
+        if value > 0 and value not in normalized_ids:
+            normalized_ids.append(value)
+    normalized_ids = normalized_ids[:500]
+    if not normalized_ids:
+        return []
+
+    actor = _actor_email()
+    with SessionLocal() as session:
+        collection = session.scalar(
+            select(ClientCollection)
+            .where(ClientCollection.id == collection_id)
+            .with_for_update()
+        )
+        if not collection:
+            raise ValueError("Client collection not found.")
+        rows = session.scalars(
+            select(ClientCollectionImage)
+            .where(
+                ClientCollectionImage.collection_id == collection_id,
+                ClientCollectionImage.id.in_(normalized_ids),
+            )
+            .order_by(ClientCollectionImage.display_order, ClientCollectionImage.id)
+            .with_for_update()
+        ).all()
+        if not rows:
+            return []
+
+        deleted_ids = {row.id for row in rows}
+        results = [_to_row(row) for row in rows]
+        if collection.cover_image_id in deleted_ids:
+            collection.cover_image_id = session.scalar(
+                select(ClientCollectionImage.id)
+                .where(
+                    ClientCollectionImage.collection_id == collection_id,
+                    ClientCollectionImage.id.not_in(deleted_ids),
+                )
+                .order_by(ClientCollectionImage.display_order, ClientCollectionImage.id)
+                .limit(1)
+            )
+        collection.updated_at = datetime.utcnow()
+        for row in rows:
+            session.delete(row)
+        session.commit()
+        log_audit(
+            actor,
+            "bulk_delete",
+            "client_collection_image",
+            collection_id,
+            _audit_details(image_ids=sorted(deleted_ids), count=len(deleted_ids)),
+        )
+        return results
+
+
 def unlock_client_collection(code: str, email: str, name: str, pin: str) -> Optional[_Row]:
     email = str(email).strip().lower()[:255]
     pin = str(pin).strip()

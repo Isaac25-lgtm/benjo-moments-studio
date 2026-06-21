@@ -161,10 +161,13 @@ class ReleaseSmokeTests(unittest.TestCase):
         try:
             first_image = io.BytesIO()
             second_image = io.BytesIO()
+            third_image = io.BytesIO()
             Image.new("RGB", (2000, 1200), color=(220, 45, 80)).save(first_image, format="JPEG")
             Image.new("RGB", (1200, 2000), color=(30, 120, 210)).save(second_image, format="JPEG")
+            Image.new("RGB", (1600, 1200), color=(40, 180, 95)).save(third_image, format="JPEG")
             first_image.seek(0)
             second_image.seek(0)
+            third_image.seek(0)
             response = self.client.post(
                 f"/admin/client-collections/{collection_id}/upload",
                 data={
@@ -173,6 +176,7 @@ class ReleaseSmokeTests(unittest.TestCase):
                     "images": [
                         (first_image, f"smoke-first-{self.suffix}.jpg"),
                         (second_image, f"smoke-cover-{self.suffix}.jpg"),
+                        (third_image, f"smoke-delete-{self.suffix}.jpg"),
                     ],
                 },
                 content_type="multipart/form-data",
@@ -181,7 +185,27 @@ class ReleaseSmokeTests(unittest.TestCase):
             stored_collection = database.get_client_collection(collection_id)
             image = stored_collection["images"][0]
             selected_cover = stored_collection["images"][1]
+            bulk_image = stored_collection["images"][2]
             self.assertEqual(stored_collection["cover_image_id"], image["id"])
+            bulk_file = os.path.join(directory, bulk_image["filename"])
+            self.assertTrue(os.path.isfile(bulk_file))
+            self.client.post(
+                f"/admin/client-collections/{collection_id}/images/{bulk_image['id']}/cover",
+                data={"csrf_token": self.csrf()},
+            )
+            self.assertEqual(
+                database.get_client_collection(collection_id)["cover_image_id"],
+                bulk_image["id"],
+            )
+            response = self.client.post(
+                f"/admin/client-collections/{collection_id}/images/delete-selected",
+                data={"csrf_token": self.csrf(), "image_ids": [bulk_image["id"]]},
+            )
+            self.assertEqual(response.status_code, 302)
+            after_bulk_delete = database.get_client_collection(collection_id)
+            self.assertEqual(len(after_bulk_delete["images"]), 2)
+            self.assertEqual(after_bulk_delete["cover_image_id"], image["id"])
+            self.assertFalse(os.path.exists(bulk_file))
             response = self.client.post(
                 f"/admin/client-collections/{collection_id}/images/{selected_cover['id']}/cover",
                 data={"csrf_token": self.csrf()},
@@ -221,6 +245,8 @@ class ReleaseSmokeTests(unittest.TestCase):
             self.assertIn(b"Client Share Link", detail.data)
             self.assertIn(f"/client-gallery/{code}".encode(), detail.data)
             self.assertIn(b"Test PIN as Client", detail.data)
+            self.assertIn(b"Delete Selected", detail.data)
+            self.assertIn(b"bulk-photo-checkbox", detail.data)
             preview = self.client.get(f"/client-gallery/{code}/photos")
             self.assertEqual(preview.status_code, 200)
             self.assertIn(b"Manager Preview", preview.data)
