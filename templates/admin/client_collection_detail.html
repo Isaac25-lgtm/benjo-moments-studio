@@ -1,166 +1,128 @@
 {% extends 'admin/base.html' %}
 {% block title %}{{ collection['title'] }}{% endblock %}
-{% block page_title %}{{ collection['title'] }}{% endblock %}
+{% block page_title %}Client Delivery{% endblock %}
+{% block extra_styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin-client-delivery.css') }}">{% endblock %}
 {% block content %}
-<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
-    <a class="btn" style="background:#718096;color:white;" href="{{ url_for('admin_extended.client_collections') }}"><i class="fas fa-arrow-left"></i> Collections</a>
-    <div style="display:flex;gap:9px;flex-wrap:wrap;"><a class="btn" style="border:1px solid #93c5fd;background:#eff6ff;color:#1e3a8a;" target="_blank" href="{{ url_for('client_gallery.collection_unlock', code=collection['collection_code'], client_view=1) }}"><i class="fas fa-user"></i> Test PIN as Client</a><a class="btn btn-primary" target="_blank" href="{{ url_for('client_gallery.collection_view', code=collection['collection_code']) }}"><i class="fas fa-eye"></i> Preview Gallery</a></div>
-</div>
+<section class="collection-workspace-shell">
+    <header class="collection-workspace-header">
+        <a class="workspace-back" href="{{ url_for('admin_extended.client_collections') }}" title="Back to collections" aria-label="Back to collections"><i class="fas fa-arrow-left"></i></a>
+        <div class="workspace-heading">
+            <h2>{{ collection['title'] }}</h2>
+            <p>{% if collection['event_date'] %}{{ collection['event_date'].strftime('%d %b %Y') }}{% else %}No event date{% endif %} <span class="collection-state collection-state-{{ 'active' if collection['is_active'] else 'locked' }}"><i class="fas fa-circle"></i> {{ 'Active' if collection['is_active'] else 'Locked' }}</span></p>
+        </div>
+        <div class="workspace-header-actions">
+            <a class="manager-command manager-command-secondary" target="_blank" href="{{ url_for('client_gallery.collection_unlock', code=collection['collection_code'], client_view=1) }}"><i class="fas fa-user-check"></i> Test PIN as Client</a>
+            <a class="manager-command manager-command-primary" target="_blank" href="{{ url_for('client_gallery.collection_view', code=collection['collection_code']) }}"><i class="far fa-eye"></i> Preview Gallery</a>
+        </div>
+    </header>
 
-<div class="content-card" id="client-share-panel" style="border:1px solid #93c5fd;background:#f8fbff;box-shadow:0 8px 24px rgba(59,130,246,.08);">
-    <h2><i class="fas fa-share-nodes"></i> Client Share Link</h2>
-    <p class="text-muted" style="margin-bottom:16px;"><strong>Step 1:</strong> Copy this private link and send it to the client. <strong>Step 2:</strong> Send the collection PIN separately. <strong>Step 3:</strong> The client opens the link, enters their name, email, and PIN, then can view and download the collection.</p>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-        <input id="client-share-url" value="{{ client_share_url }}" readonly aria-label="Client gallery share link" style="min-width:220px;flex:1 1 420px;">
-        <button class="btn btn-primary" id="copy-client-link" type="button" onclick="copyClientLink()"><i class="fas fa-copy"></i> Copy Link</button>
-        <button class="btn btn-success" type="button" onclick="shareClientLink()"><i class="fab fa-whatsapp"></i> WhatsApp</button>
+    <div class="collection-workspace">
+        <aside class="collection-workspace-rail">
+            <div class="workspace-cover">
+                {% if collection['cover_image_id'] %}<img src="{{ url_for('client_gallery.collection_cover', code=collection['collection_code'], v=collection['cover_image_id']) }}" alt="Cover for {{ collection['title'] }}">
+                {% else %}<div><i class="far fa-images"></i><span>Choose a cover photo</span></div>{% endif %}
+            </div>
+            <div class="workspace-quick-actions">
+                <button type="button" onclick="copyClientLink()" title="Copy client link" aria-label="Copy client link"><i class="far fa-copy"></i></button>
+                <button type="button" onclick="shareClientLink()" title="Share on WhatsApp" aria-label="Share on WhatsApp"><i class="fab fa-whatsapp"></i></button>
+                <button type="button" onclick="openWorkspacePanel('collection-settings')" title="Collection settings" aria-label="Collection settings"><i class="fas fa-sliders"></i></button>
+                <button type="button" onclick="openWorkspacePanel('client-activity')" title="Client activity" aria-label="Client activity"><i class="fas fa-chart-line"></i></button>
+            </div>
+            <div class="workspace-client-summary">
+                <strong>{{ collection['client_name'] }}</strong>
+                {% if collection['client_email'] %}<span>{{ collection['client_email'] }}</span>{% endif %}
+                {% if collection['location'] %}<span><i class="fas fa-location-dot"></i> {{ collection['location'] }}</span>{% endif %}
+                <span><i class="fas fa-key"></i> {{ collection['collection_code'] }}</span>
+            </div>
+            <nav class="workspace-section-nav" aria-label="Collection workspace sections">
+                <a href="#photo-library"><i class="far fa-images"></i><span>Highlights</span><strong>{{ collection['images']|length }}</strong></a>
+                <button type="button" onclick="openWorkspacePanel('upload-photos')"><i class="fas fa-cloud-arrow-up"></i><span>Add Photos</span></button>
+                <button type="button" onclick="openWorkspacePanel('client-share-panel')"><i class="fas fa-share-nodes"></i><span>Client Share Link</span></button>
+                <button type="button" onclick="openWorkspacePanel('collection-settings')"><i class="fas fa-sliders"></i><span>Settings & PIN</span></button>
+                <button type="button" onclick="openWorkspacePanel('client-activity')"><i class="fas fa-chart-line"></i><span>Client Activity</span></button>
+            </nav>
+        </aside>
+
+        <section class="collection-workspace-main">
+            <section class="workspace-photo-library" id="photo-library">
+                <header class="photo-library-header">
+                    <div><p class="manager-eyebrow">Photo library</p><h2>Highlights</h2><span>{{ collection['images']|length }} photo{% if collection['images']|length != 1 %}s{% endif %}</span></div>
+                    <div class="photo-library-actions">
+                        {% if collection['images'] %}<button type="button" class="manager-icon-command" onclick="setAllPhotosSelected(true)" title="Select all photos" aria-label="Select all photos"><i class="far fa-square-check"></i></button>{% endif %}
+                        <button type="button" class="manager-command manager-command-primary" onclick="openWorkspacePanel('upload-photos')"><i class="fas fa-plus"></i> Add Photos</button>
+                    </div>
+                </header>
+
+                {% if collection['images'] %}
+                <div class="bulk-photo-toolbar">
+                    <span><strong id="bulk-photo-count">0</strong> selected</span>
+                    <button type="button" onclick="setAllPhotosSelected(false)">Clear selection</button>
+                    <form id="bulk-delete-photos" action="{{ url_for('admin_extended.delete_selected_collection_images', collection_id=collection['id']) }}" method="POST" onsubmit="return confirmBulkPhotoDelete()"><button id="bulk-delete-button" class="manager-command manager-command-danger" disabled><i class="far fa-trash-can"></i> Delete Selected</button></form>
+                </div>
+                <div class="workspace-photo-grid">
+                    {% for image in collection['images'] %}
+                    <article class="workspace-photo-card {% if collection['cover_image_id'] == image['id'] %}is-cover{% endif %}">
+                        <a class="workspace-photo-preview" href="{{ url_for('client_gallery.collection_photo', code=collection['collection_code'], image_id=image['id']) }}" target="_blank" title="Open full photo">
+                            <img src="{{ url_for('client_gallery.collection_photo', code=collection['collection_code'], image_id=image['id']) }}" alt="{{ image['caption'] or 'Collection photo' }}" loading="lazy">
+                        </a>
+                        {% if collection['cover_image_id'] == image['id'] %}<span class="workspace-cover-badge"><i class="fas fa-image"></i> Cover</span>{% endif %}
+                        <label class="bulk-photo-select" title="Select photo"><input class="bulk-photo-checkbox" type="checkbox" name="image_ids" value="{{ image['id'] }}" form="bulk-delete-photos" onchange="updateBulkPhotoSelection()"><span><i class="fas fa-check"></i></span></label>
+                        <div class="workspace-photo-actions">
+                            {% if collection['cover_image_id'] != image['id'] %}<form action="{{ url_for('admin_extended.set_collection_cover', collection_id=collection['id'], image_id=image['id']) }}" method="POST"><button type="submit" title="Set Cover" aria-label="Set Cover"><i class="far fa-image"></i></button></form>{% endif %}
+                            <form action="{{ url_for('admin_extended.delete_collection_image', collection_id=collection['id'], image_id=image['id']) }}" method="POST" onsubmit="return confirm('Delete this client photo?')"><button type="submit" title="Delete photo" aria-label="Delete photo"><i class="far fa-trash-can"></i></button></form>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="workspace-photo-empty"><i class="far fa-images"></i><h3>No photos yet</h3><p>Add the finished client photos, then choose one as the collection cover.</p><button type="button" class="manager-command manager-command-primary" onclick="openWorkspacePanel('upload-photos')"><i class="fas fa-plus"></i> Add Photos</button></div>
+                {% endif %}
+            </section>
+
+            <div class="workspace-management-panels">
+                <details class="workspace-panel" id="upload-photos" {% if not collection['images'] %}open{% endif %}>
+                    <summary><span><i class="fas fa-cloud-arrow-up"></i><strong>Upload Client Photos</strong><small>Add up to 25 photos per batch</small></span><i class="fas fa-chevron-down"></i></summary>
+                    <div class="workspace-panel-body"><form action="{{ url_for('admin_extended.upload_collection_images', collection_id=collection['id']) }}" method="POST" enctype="multipart/form-data"><div class="form-row"><div class="form-group"><label>Photos <small>(JPG, PNG, or WebP; up to 100 MB per batch)</small></label><input type="file" name="images" accept="image/jpeg,image/png,image/webp" multiple required></div><div class="form-group"><label>Shared caption <small>(optional)</small></label><input name="caption"></div></div><button class="manager-command manager-command-primary"><i class="fas fa-upload"></i> Upload Photos</button></form></div>
+                </details>
+
+                <details class="workspace-panel" id="client-share-panel">
+                    <summary><span><i class="fas fa-share-nodes"></i><strong>Client Share Link</strong><small>Send the private link and PIN separately</small></span><i class="fas fa-chevron-down"></i></summary>
+                    <div class="workspace-panel-body"><p class="panel-guidance"><strong>Step 1:</strong> Copy and send this private link. <strong>Step 2:</strong> Send the PIN separately. <strong>Step 3:</strong> The client enters their name, email, and PIN, sees the cover introduction, then opens the gallery.</p><div class="client-share-control"><input id="client-share-url" value="{{ client_share_url }}" readonly aria-label="Client gallery share link"><button class="manager-command manager-command-primary" id="copy-client-link" type="button" onclick="copyClientLink()"><i class="far fa-copy"></i> Copy Link</button><button class="manager-icon-command whatsapp-command" type="button" onclick="shareClientLink()" title="Share on WhatsApp" aria-label="Share on WhatsApp"><i class="fab fa-whatsapp"></i></button></div></div>
+                </details>
+
+                <details class="workspace-panel" id="collection-settings">
+                    <summary><span><i class="fas fa-sliders"></i><strong>Collection Settings & PIN</strong><small>Edit client details, access, and the collection PIN</small></span><i class="fas fa-chevron-down"></i></summary>
+                    <div class="workspace-panel-body">
+                        <form action="{{ url_for('admin_extended.update_client_collection', collection_id=collection['id']) }}" method="POST"><div class="form-row"><div class="form-group"><label>Title</label><input name="title" value="{{ collection['title'] }}" required></div><div class="form-group"><label>Client name</label><input name="client_name" value="{{ collection['client_name'] }}" required></div><div class="form-group"><label>Client email</label><input type="email" name="client_email" value="{{ collection['client_email'] or '' }}"></div></div><div class="form-row"><div class="form-group"><label>Event date</label><input type="date" name="event_date" value="{{ collection['event_date'] or '' }}"></div><div class="form-group"><label>Venue / location</label><input name="location" value="{{ collection['location'] or '' }}"></div><div class="form-group"><label>Expiry date</label><input type="date" name="expires_at" value="{{ collection['expires_at'].strftime('%Y-%m-%d') if collection['expires_at'] else '' }}"></div></div><div class="form-group"><label>Description</label><textarea name="description" rows="2">{{ collection['description'] or '' }}</textarea></div><label class="workspace-toggle"><input type="checkbox" name="is_active" {% if collection['is_active'] %}checked{% endif %}><span>Collection active</span></label><button class="manager-command manager-command-primary"><i class="far fa-floppy-disk"></i> Save Settings</button></form>
+                        <form class="reset-pin-form" action="{{ url_for('admin_extended.reset_collection_pin', collection_id=collection['id']) }}" method="POST"><div class="form-group"><label for="reset-client-pin">Choose a new client PIN</label><div class="manager-pin-control"><input id="reset-client-pin" type="password" name="pin" minlength="4" maxlength="64" autocomplete="new-password" placeholder="Enter a new PIN" required><button type="button" onclick="toggleManagerPin('reset-client-pin', this)" title="Show or hide PIN" aria-label="Show or hide PIN"><i class="far fa-eye"></i></button><button type="button" onclick="generateManagerPin('reset-client-pin')"><i class="fas fa-wand-magic-sparkles"></i> Generate</button></div><small>The old PIN stops working immediately.</small></div><button class="manager-command manager-command-secondary"><i class="fas fa-key"></i> Save New PIN</button></form>
+                        <form class="delete-collection-form" action="{{ url_for('admin_extended.delete_collection', collection_id=collection['id']) }}" method="POST" onsubmit="return confirm('Permanently delete this collection, its photos, comments, and activity?')"><div><strong>Delete collection</strong><span>Permanently removes its photos and client activity.</span></div><button class="manager-command manager-command-danger"><i class="far fa-trash-can"></i> Delete Collection</button></form>
+                    </div>
+                </details>
+
+                <details class="workspace-panel" id="client-activity">
+                    <summary><span><i class="fas fa-chart-line"></i><strong>Client Activity</strong><small>Visitors, downloads, likes, and comments</small></span><i class="fas fa-chevron-down"></i></summary>
+                    <div class="workspace-panel-body"><div class="workspace-activity-stats"><div><span>Visitors</span><strong>{{ activity['visitors']|length }}</strong></div><div><span>Downloads</span><strong>{{ activity['downloads']|length }}</strong></div><div><span>Likes</span><strong>{{ activity['likes']|length }}</strong></div><div><span>Comments</span><strong>{{ activity['comments']|length }}</strong></div></div>{% if activity['downloads'] %}<h3>Recent Downloads</h3><div class="workspace-table"><table><thead><tr><th>Email</th><th>Photo</th><th>Quality</th><th>Time</th></tr></thead><tbody>{% for item in activity['downloads'] %}<tr><td>{{ item['visitor_email'] or '-' }}</td><td>{{ item['image_name'] or 'Entire collection' }}</td><td>{{ item['download_type'].replace('_', ' ')|title }}</td><td>{{ item['downloaded_at'].strftime('%Y-%m-%d %H:%M') }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}{% if activity['likes'] %}<h3>Client Likes</h3><div class="workspace-table"><table><thead><tr><th>Name</th><th>Email</th><th>Photo</th><th>Time</th></tr></thead><tbody>{% for item in activity['likes'] %}<tr><td>{{ item['visitor_name'] }}</td><td>{{ item['visitor_email'] }}</td><td>{{ item['image_name'] }}</td><td>{{ item['created_at'].strftime('%Y-%m-%d %H:%M') }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}{% if activity['comments'] %}<h3>Comments</h3><div class="workspace-table"><table><thead><tr><th>Email</th><th>Photo</th><th>Comment</th><th>Time</th></tr></thead><tbody>{% for item in activity['comments'] %}<tr><td>{{ item['visitor_email'] }}</td><td>{{ item['image_name'] }}</td><td>{{ item['comment'] }}</td><td>{{ item['created_at'].strftime('%Y-%m-%d %H:%M') }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}</div>
+                </details>
+            </div>
+        </section>
     </div>
-    <p class="text-muted" style="margin:12px 0 0;font-size:13px;">Collection code: <strong>{{ collection['collection_code'] }}</strong>. Use <strong>Test PIN as Client</strong> above to check the exact PIN experience without logging out.</p>
-</div>
+</section>
 
-<div class="content-card">
-    <h2><i class="fas fa-sliders"></i> Collection Settings</h2>
-    <p class="text-muted" style="margin-bottom:18px;">Share code <strong>{{ collection['collection_code'] }}</strong>. PINs are never displayed after creation; reset the PIN when needed.</p>
-    <form action="{{ url_for('admin_extended.update_client_collection', collection_id=collection['id']) }}" method="POST">
-        <div class="form-row">
-            <div class="form-group"><label>Title</label><input name="title" value="{{ collection['title'] }}" required></div>
-            <div class="form-group"><label>Client name</label><input name="client_name" value="{{ collection['client_name'] }}" required></div>
-            <div class="form-group"><label>Client email</label><input type="email" name="client_email" value="{{ collection['client_email'] or '' }}"></div>
-        </div>
-        <div class="form-row">
-            <div class="form-group"><label>Event date</label><input type="date" name="event_date" value="{{ collection['event_date'] or '' }}"></div>
-            <div class="form-group"><label>Venue / location</label><input name="location" value="{{ collection['location'] or '' }}"></div>
-            <div class="form-group"><label>Expiry date</label><input type="date" name="expires_at" value="{{ collection['expires_at'].strftime('%Y-%m-%d') if collection['expires_at'] else '' }}"></div>
-        </div>
-        <div class="form-group"><label>Description</label><textarea name="description" rows="2">{{ collection['description'] or '' }}</textarea></div>
-        <label style="display:flex;gap:8px;align-items:center;margin-bottom:16px;"><input type="checkbox" name="is_active" {% if collection['is_active'] %}checked{% endif %}> Collection active</label>
-        <button class="btn btn-primary"><i class="fas fa-save"></i> Save</button>
-    </form>
-    <form action="{{ url_for('admin_extended.reset_collection_pin', collection_id=collection['id']) }}" method="POST" style="margin-top:22px;padding-top:20px;border-top:1px solid #e2e8f0;display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
-        <div class="form-group" style="margin:0;min-width:240px;flex:1 1 360px;"><label for="reset-client-pin">Choose a new client PIN</label><div class="reset-pin-control"><input id="reset-client-pin" type="password" name="pin" minlength="4" maxlength="64" autocomplete="new-password" placeholder="Enter your own PIN" required><button type="button" onclick="toggleManagerPin('reset-client-pin', this)" title="Show or hide PIN" aria-label="Show or hide PIN"><i class="far fa-eye"></i></button><button type="button" onclick="generateManagerPin('reset-client-pin')"><i class="fas fa-wand-magic-sparkles"></i> Generate</button></div><small class="text-muted">The old PIN will stop working immediately.</small></div>
-        <button class="btn btn-warning"><i class="fas fa-key"></i> Save New PIN</button>
-    </form>
-</div>
-
-<div class="content-card">
-    <h2><i class="fas fa-cloud-upload-alt"></i> Upload Client Photos</h2>
-    <form action="{{ url_for('admin_extended.upload_collection_images', collection_id=collection['id']) }}" method="POST" enctype="multipart/form-data">
-        <div class="form-row">
-            <div class="form-group"><label>Photos <small class="text-muted">(up to 25 or 100 MB per batch; repeat as needed)</small></label><input type="file" name="images" accept="image/jpeg,image/png,image/webp" multiple required></div>
-            <div class="form-group"><label>Shared caption <small class="text-muted">(optional)</small></label><input name="caption"></div>
-        </div>
-        <button class="btn btn-primary"><i class="fas fa-upload"></i> Upload Photos</button>
-    </form>
-</div>
-
-<div class="content-card">
-    <div class="photo-manager-heading"><h2><i class="fas fa-images"></i> Photos ({{ collection['images']|length }})</h2>{% if collection['images'] %}<div class="bulk-photo-actions"><button type="button" class="btn btn-sm" onclick="setAllPhotosSelected(true)"><i class="fas fa-check-square"></i> Select All</button><button type="button" class="btn btn-sm" onclick="setAllPhotosSelected(false)"><i class="far fa-square"></i> Clear</button><form id="bulk-delete-photos" action="{{ url_for('admin_extended.delete_selected_collection_images', collection_id=collection['id']) }}" method="POST" onsubmit="return confirmBulkPhotoDelete()"><button id="bulk-delete-button" class="btn btn-danger btn-sm" disabled><i class="fas fa-trash"></i> Delete Selected (<span id="bulk-photo-count">0</span>)</button></form></div>{% endif %}</div>
-    {% if collection['images'] %}<p class="text-muted" style="margin-top:10px;">Select any photos you want to remove, then choose Delete Selected. This cannot be undone.</p>{% endif %}
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;margin-top:18px;">
-        {% for image in collection['images'] %}
-        <div style="border:2px solid {{ '#38a169' if collection['cover_image_id'] == image['id'] else '#e2e8f0' }};border-radius:8px;overflow:hidden;background:#f8fafc;position:relative;">
-            {% if collection['cover_image_id'] == image['id'] %}<span class="badge badge-success" style="position:absolute;top:8px;left:8px;z-index:2;"><i class="fas fa-image"></i> Cover</span>{% endif %}
-            <label class="bulk-photo-select" title="Select {{ image['original_name'] }}"><input class="bulk-photo-checkbox" type="checkbox" name="image_ids" value="{{ image['id'] }}" form="bulk-delete-photos" onchange="updateBulkPhotoSelection()"><span><i class="fas fa-check"></i></span></label>
-            <img src="{{ url_for('client_gallery.collection_photo', code=collection['collection_code'], image_id=image['id']) }}" alt="{{ image['caption'] or image['original_name'] }}" style="width:100%;height:150px;object-fit:{{ 'contain' if collection['cover_image_id'] == image['id'] else 'cover' }};background:#171923;display:block;">
-            <div style="padding:10px;"><small style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ image['original_name'] }}</small><div style="display:flex;gap:7px;margin-top:8px;">{% if collection['cover_image_id'] != image['id'] %}<form action="{{ url_for('admin_extended.set_collection_cover', collection_id=collection['id'], image_id=image['id']) }}" method="POST"><button class="btn btn-success btn-sm" title="Use as collection cover"><i class="fas fa-image"></i> Set Cover</button></form>{% endif %}<form action="{{ url_for('admin_extended.delete_collection_image', collection_id=collection['id'], image_id=image['id']) }}" method="POST" onsubmit="return confirm('Delete this client photo?')"><button class="btn btn-danger btn-sm" title="Delete"><i class="fas fa-trash"></i></button></form></div></div>
-        </div>
-        {% else %}<p class="text-muted">No photos uploaded yet.</p>{% endfor %}
-    </div>
-</div>
-
-<div class="content-card">
-    <h2><i class="fas fa-chart-line"></i> Client Activity</h2>
-    <div class="stats-grid" style="margin-top:18px;">
-        <div class="stat-card"><h3>Visitors</h3><div class="value">{{ activity['visitors']|length }}</div></div>
-        <div class="stat-card"><h3>Downloads</h3><div class="value">{{ activity['downloads']|length }}</div></div>
-        <div class="stat-card"><h3>Likes</h3><div class="value">{{ activity['likes']|length }}</div></div>
-        <div class="stat-card"><h3>Comments</h3><div class="value">{{ activity['comments']|length }}</div></div>
-    </div>
-    {% if activity['downloads'] %}
-    <h3 style="margin:24px 0 10px;">Recent Downloads</h3>
-    <div style="overflow-x:auto;"><table><thead><tr><th>Email</th><th>Photo</th><th>Quality</th><th>Time</th></tr></thead><tbody>{% for item in activity['downloads'] %}<tr><td>{{ item['visitor_email'] or '-' }}</td><td>{{ item['image_name'] or 'Entire collection' }}</td><td>{{ item['download_type'].replace('_', ' ')|title }}</td><td>{{ item['downloaded_at'].strftime('%Y-%m-%d %H:%M') }}</td></tr>{% endfor %}</tbody></table></div>
-    {% endif %}
-    {% if activity['likes'] %}
-    <h3 style="margin:24px 0 10px;">Client Likes</h3>
-    <div style="overflow-x:auto;"><table><thead><tr><th>Name</th><th>Email</th><th>Photo</th><th>Time</th></tr></thead><tbody>{% for item in activity['likes'] %}<tr><td>{{ item['visitor_name'] }}</td><td>{{ item['visitor_email'] }}</td><td>{{ item['image_name'] }}</td><td>{{ item['created_at'].strftime('%Y-%m-%d %H:%M') }}</td></tr>{% endfor %}</tbody></table></div>
-    {% endif %}
-    {% if activity['comments'] %}
-    <h3 style="margin:24px 0 10px;">Comments</h3>
-    <div style="overflow-x:auto;"><table><thead><tr><th>Email</th><th>Photo</th><th>Comment</th><th>Time</th></tr></thead><tbody>{% for item in activity['comments'] %}<tr><td>{{ item['visitor_email'] }}</td><td>{{ item['image_name'] }}</td><td>{{ item['comment'] }}</td><td>{{ item['created_at'].strftime('%Y-%m-%d %H:%M') }}</td></tr>{% endfor %}</tbody></table></div>
-    {% endif %}
-</div>
-
-<div class="content-card" style="border:1px solid #fed7d7;">
-    <form action="{{ url_for('admin_extended.delete_collection', collection_id=collection['id']) }}" method="POST" onsubmit="return confirm('Permanently delete this collection, its photos, comments, and activity?')">
-        <button class="btn btn-danger"><i class="fas fa-trash"></i> Delete Collection</button>
-    </form>
-</div>
-<style>
-.reset-pin-control{display:grid;grid-template-columns:minmax(0,1fr) 44px auto}.reset-pin-control input{min-width:0;border-radius:8px 0 0 8px}.reset-pin-control button{border:1px solid #cbd5e1;border-left:0;background:#fff;color:#1a1a2e;cursor:pointer}.reset-pin-control button:last-child{padding:0 12px;border-radius:0 8px 8px 0;background:#eef2ff;color:#1e3a8a;font-weight:700}@media(max-width:560px){.reset-pin-control{grid-template-columns:minmax(0,1fr) 44px}.reset-pin-control button:last-child{grid-column:1/-1;height:40px;border:1px solid #cbd5e1;border-top:0;border-radius:0 0 8px 8px}}
-.photo-manager-heading{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}.bulk-photo-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.bulk-photo-actions>.btn{border:1px solid #cbd5e1;background:#fff;color:#1a1a2e}.bulk-photo-select{position:absolute;right:8px;top:8px;z-index:3;cursor:pointer}.bulk-photo-select input{position:absolute;opacity:0;pointer-events:none}.bulk-photo-select span{width:34px;height:34px;display:grid;place-items:center;border:2px solid #fff;border-radius:6px;background:rgba(15,23,42,.78);color:transparent;box-shadow:0 2px 8px rgba(0,0,0,.2)}.bulk-photo-select input:checked+span{background:#e53e3e;color:#fff}.bulk-photo-select input:focus-visible+span{outline:3px solid #93c5fd;outline-offset:2px}@media(max-width:560px){.photo-manager-heading{align-items:flex-start;flex-direction:column}.bulk-photo-actions{width:100%}.bulk-photo-actions form{flex:1}.bulk-photo-actions form button{width:100%}}
-</style>
 <script>
+function openWorkspacePanel(id) {
+    var panel = document.getElementById(id); if (!panel) return; panel.open = true; panel.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
 function copyClientLink() {
-    var input = document.getElementById('client-share-url');
-    var button = document.getElementById('copy-client-link');
-    var copied = function () {
-        button.innerHTML = '<i class="fas fa-check"></i> Copied';
-        window.setTimeout(function () { button.innerHTML = '<i class="fas fa-copy"></i> Copy Link'; }, 1800);
-    };
-    var legacyCopy = function () {
-        input.focus();
-        input.select();
-        input.setSelectionRange(0, input.value.length);
-        document.execCommand('copy');
-        window.getSelection().removeAllRanges();
-        copied();
-    };
-    if (navigator.clipboard && window.isSecureContext) {
-        navigator.clipboard.writeText(input.value).then(copied).catch(legacyCopy);
-        return;
-    }
-    legacyCopy();
+    var input = document.getElementById('client-share-url'); var link = input ? input.value : '{{ client_share_url }}'; var button = document.getElementById('copy-client-link');
+    var copied = function () { if (!button) return; button.innerHTML = '<i class="fas fa-check"></i> Copied'; window.setTimeout(function () { button.innerHTML = '<i class="far fa-copy"></i> Copy Link'; }, 1800); };
+    var legacyCopy = function () { var helper = document.createElement('input'); helper.value = link; document.body.appendChild(helper); helper.select(); document.execCommand('copy'); helper.remove(); copied(); };
+    if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(link).then(copied).catch(legacyCopy); return; } legacyCopy();
 }
-
-function shareClientLink() {
-    var link = document.getElementById('client-share-url').value;
-    var message = 'Your Benjo Moments photo collection is ready: ' + link + ' Use the PIN sent to you separately.';
-    window.open('https://wa.me/?text=' + encodeURIComponent(message), '_blank', 'noopener');
-}
-
-function toggleManagerPin(inputId, button) {
-    var input = document.getElementById(inputId);
-    var showing = input.type === 'text';
-    input.type = showing ? 'password' : 'text';
-    button.querySelector('i').className = showing ? 'far fa-eye' : 'far fa-eye-slash';
-}
-
-function generateManagerPin(inputId) {
-    var input = document.getElementById(inputId);
-    var values = new Uint32Array(1);
-    window.crypto.getRandomValues(values);
-    input.value = String(100000 + (values[0] % 900000));
-    input.type = 'text';
-    input.focus();
-    input.select();
-}
-
-function updateBulkPhotoSelection() {
-    var checked = document.querySelectorAll('.bulk-photo-checkbox:checked').length;
-    var count = document.getElementById('bulk-photo-count');
-    var button = document.getElementById('bulk-delete-button');
-    if (count) count.textContent = checked;
-    if (button) button.disabled = checked === 0;
-}
-
-function setAllPhotosSelected(selected) {
-    document.querySelectorAll('.bulk-photo-checkbox').forEach(function(checkbox) { checkbox.checked = selected; });
-    updateBulkPhotoSelection();
-}
-
-function confirmBulkPhotoDelete() {
-    var count = document.querySelectorAll('.bulk-photo-checkbox:checked').length;
-    return count > 0 && window.confirm('Permanently delete ' + count + ' selected photo' + (count === 1 ? '' : 's') + '? This cannot be undone.');
-}
+function shareClientLink() { var input = document.getElementById('client-share-url'); var link = input ? input.value : '{{ client_share_url }}'; var message = 'Your Benjo Moments photo collection is ready: ' + link + ' Use the PIN sent separately.'; window.open('https://wa.me/?text=' + encodeURIComponent(message), '_blank', 'noopener'); }
+function toggleManagerPin(inputId, button) { var input = document.getElementById(inputId); var showing = input.type === 'text'; input.type = showing ? 'password' : 'text'; button.querySelector('i').className = showing ? 'far fa-eye' : 'far fa-eye-slash'; }
+function generateManagerPin(inputId) { var input = document.getElementById(inputId); var values = new Uint32Array(1); window.crypto.getRandomValues(values); input.value = String(100000 + (values[0] % 900000)); input.type = 'text'; input.focus(); input.select(); }
+function updateBulkPhotoSelection() { var checked = document.querySelectorAll('.bulk-photo-checkbox:checked').length; var count = document.getElementById('bulk-photo-count'); var button = document.getElementById('bulk-delete-button'); var toolbar = document.querySelector('.bulk-photo-toolbar'); if (count) count.textContent = checked; if (button) button.disabled = checked === 0; if (toolbar) toolbar.classList.toggle('has-selection', checked > 0); }
+function setAllPhotosSelected(selected) { document.querySelectorAll('.bulk-photo-checkbox').forEach(function(checkbox) { checkbox.checked = selected; }); updateBulkPhotoSelection(); }
+function confirmBulkPhotoDelete() { var count = document.querySelectorAll('.bulk-photo-checkbox:checked').length; return count > 0 && window.confirm('Permanently delete ' + count + ' selected photo' + (count === 1 ? '' : 's') + '? This cannot be undone.'); }
 </script>
 {% endblock %}

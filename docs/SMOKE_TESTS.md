@@ -217,6 +217,7 @@ Mark each ✅ pass / ❌ fail with notes.
 | CG26 | Mark one or all download alerts as read | The unread count updates for both administrators |
 | CG27 | Select several photos and choose Delete Selected | Only selected photos and stored files are removed; a deleted cover is replaced when another photo remains |
 | CG28 | Submit the correct PIN and revisit the private link | The full-screen collection cover appears before the photo grid without asking for the PIN again |
+| CG29 | Open Client Delivery and select a collection | The visual collection library opens a cover-led workspace with Highlights, Add Photos, share, settings, activity, and bulk controls |
 
 ---
 
